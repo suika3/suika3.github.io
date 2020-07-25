@@ -454,7 +454,7 @@ document.body.onchange = function (event) {
   $("password").value = "";
 
   for (var i = 0; i < 318; i++) {
-    $("password").value += PASSWORD_CHARACTERS[pass[i] + offset + i * 27 & 0x3f];
+    $("password").value += PASSWORD_CHARACTERS[pass[i] /* + offset */ + i * 27 & 0x3f];
 
     if (i % 53 === 52) {
       $("password").value += "\n";
