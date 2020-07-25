@@ -1,2 +1,2 @@
-# suikagatabetai.github.io
-https://suikagatabetai.github.io
+# suika2.github.io
+https://suika2.github.io
