@@ -10,8 +10,7 @@ wM8lA3p9MPZESEQ1O58dQqo3bwLlpL8UKQKRYX0AxOfVwP6CcsSEU
 39YwRwPrCXBcPA6S370MO0vuXZ+QzyJoDCTb70Tvj6Rf3SNz7Q7Lq
 vypU9S2RnHy+oXWA1zqVpLKTjsiMYU9YxPfFQjmEc4Sc43CJ5s81g
 UKhxC8FGDuhx7Slo3eJnHqvotCAb40ks8KoDuZb70lRgKan6-mA5k
-gDeTb70hGUWR1H8sYX9Ax4fVwLmBcsStIDCZbPiFY-Wwk68dGTifb
-</textarea>
+gDeTb70hGUWR1H8sYX9Ax4fVwLmBcsStIDCZbPiFY-Wwk68dGTifb</textarea>
 名前:<input id="name">
 ダンジョン:<input id="area">
 位置:<input id="pos">
@@ -748,7 +747,7 @@ document.body.onchange = function (event) {
   for (var i = 0; i < 318; i++) {
     $("password").value += PASSWORD_CHARACTERS[pass[i] /* + offset */ + i * 27 & 0x3f];
 
-    if (i % 53 === 52) {
+    if (i % 53 === 52 && i != 317) {
       $("password").value += "\n";
     }
   }
