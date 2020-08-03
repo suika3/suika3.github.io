@@ -692,7 +692,8 @@ document.body.onchange = function (event) {
     var cmdAb = $("cmd-ab" + i).value.split("\n");
 
     for (var j = 0; j < 4; j++) {
-      pass.push(BATTLE_COMMANDS.indexOf(cmdAb[j] || ""));
+      var n = BATTLE_COMMANDS.indexOf(cmdAb[j] || "");
+      pass.push(i === 0 && n === 12 ? 6 : n);
     }
 
     var hp = $("hp" + i).value;
