@@ -1,7 +1,7 @@
-diff --git a/src/ARpg.java b/src/ARpg.java
+diff --git a/ARpg.java b/ARpg.java
 index d065bba..c1f63f2 100644
---- a/src/ARpg.java
-+++ b/src/ARpg.java
+--- a/ARpg.java
++++ b/ARpg.java
 @@ -1,5 +1,22 @@
 +import javax.imageio.ImageIO;
  import java.awt.Color;
@@ -532,10 +532,10 @@ index d065bba..c1f63f2 100644
        this.LoopFrame(4);
        this.PlaySe(3);
        this.LoopFrame(8);
-diff --git a/src/BtlCmdWin.java b/src/BtlCmdWin.java
+diff --git a/BtlCmdWin.java b/BtlCmdWin.java
 index df408e7..c796851 100644
---- a/src/BtlCmdWin.java
-+++ b/src/BtlCmdWin.java
+--- a/BtlCmdWin.java
++++ b/BtlCmdWin.java
 @@ -105,11 +105,16 @@ class BtlCmdWin extends CWindow {
                 var2 = 0;
              }
@@ -588,10 +588,10 @@ index df408e7..c796851 100644
                       if (var1 != -1) {
                          int var4 = var1 + var3 * 2;
                          if (var4 < this.m_nMax) {
-diff --git a/src/CAbilityWin.java b/src/CAbilityWin.java
+diff --git a/CAbilityWin.java b/CAbilityWin.java
 index c7a1567..8c6aa16 100644
---- a/src/CAbilityWin.java
-+++ b/src/CAbilityWin.java
+--- a/CAbilityWin.java
++++ b/CAbilityWin.java
 @@ -23,13 +23,13 @@ class CAbilityWin extends CWindow {
        new String();
        String var5 = "ページ";
@@ -638,10 +638,10 @@ index c7a1567..8c6aa16 100644
        this._Open(var4, var5, this.m_nDispX, this.m_nDispY);
     }
  
-diff --git a/src/CBR_MoneyWindow.java b/src/CBR_MoneyWindow.java
+diff --git a/CBR_MoneyWindow.java b/CBR_MoneyWindow.java
 index 985fd91..869bfbb 100644
---- a/src/CBR_MoneyWindow.java
-+++ b/src/CBR_MoneyWindow.java
+--- a/CBR_MoneyWindow.java
++++ b/CBR_MoneyWindow.java
 @@ -9,19 +9,25 @@ class CBR_MoneyWindow extends CWindow {
     public void Create(ARpg var1, CBattleInfo var2) {
        this.m_App = var1;
@@ -680,10 +680,10 @@ index 985fd91..869bfbb 100644
 +      this._Open(this.m_App.m_nCenterX, Vari.Scale(56), Vari.Scale(32), Vari.Scale(8));
     }
  }
-diff --git a/src/CBR_PersonWindow.java b/src/CBR_PersonWindow.java
+diff --git a/CBR_PersonWindow.java b/CBR_PersonWindow.java
 index 4f8130b..46d0611 100644
---- a/src/CBR_PersonWindow.java
-+++ b/src/CBR_PersonWindow.java
+--- a/CBR_PersonWindow.java
++++ b/CBR_PersonWindow.java
 @@ -14,18 +14,18 @@ class CBR_PersonWindow extends CWindow {
        this.m_nYPos = var3;
        this.m_nExp = var4;
@@ -716,10 +716,10 @@ index 4f8130b..46d0611 100644
     }
  
     CBR_PersonWindow() {
-diff --git a/src/CBaseHelp.java b/src/CBaseHelp.java
+diff --git a/CBaseHelp.java b/CBaseHelp.java
 index d362c63..1bc32f2 100644
---- a/src/CBaseHelp.java
-+++ b/src/CBaseHelp.java
+--- a/CBaseHelp.java
++++ b/CBaseHelp.java
 @@ -12,11 +12,11 @@ class CBaseHelp extends CMenuWindowLR {
  
     public void OpenAllWindow() {
@@ -734,10 +734,10 @@ index d362c63..1bc32f2 100644
        super.m_App.LoopFrame(4);
     }
  
-diff --git a/src/CBaseShop.java b/src/CBaseShop.java
+diff --git a/CBaseShop.java b/CBaseShop.java
 index e481c66..477eff8 100644
---- a/src/CBaseShop.java
-+++ b/src/CBaseShop.java
+--- a/CBaseShop.java
++++ b/CBaseShop.java
 @@ -26,7 +26,7 @@ class CBaseShop {
        var1.SetMenuText(0, "はい");
        var1.SetMenuText(1, "いいえ");
@@ -747,10 +747,10 @@ index e481c66..477eff8 100644
        this.m_App.LoopFrame(4);
        int var2 = var1.LoopFrame();
        this.m_App.ReleaseWindow(var1);
-diff --git a/src/CBattleActEfc.java b/src/CBattleActEfc.java
+diff --git a/CBattleActEfc.java b/CBattleActEfc.java
 index b2092df..7c86215 100644
---- a/src/CBattleActEfc.java
-+++ b/src/CBattleActEfc.java
+--- a/CBattleActEfc.java
++++ b/CBattleActEfc.java
 @@ -293,6 +293,7 @@ class CBattleActEfc extends CBattleActCalc {
        CBattleActCalc.m_App.m_Render.SetBright(1.0F);
        CBattleActCalc.m_App.m_Render.SetLight(var3);
@@ -767,10 +767,10 @@ index b2092df..7c86215 100644
     }
  
     public static void AllWShield(CBattleWork var0, CAction var1) {
-diff --git a/src/CBattleAction.java b/src/CBattleAction.java
-index c57d5da..25aec55 100644
---- a/src/CBattleAction.java
-+++ b/src/CBattleAction.java
+diff --git a/CBattleAction.java b/CBattleAction.java
+index 6a97c25..25aec55 100644
+--- a/CBattleAction.java
++++ b/CBattleAction.java
 @@ -178,7 +178,9 @@ class CBattleAction extends CBattleActItem {
        CBattleActCalc.AllDamage(var1.m_nObj, 9999, 2);
        CBattleActCalc.m_Btl.CheckDead();
@@ -793,6 +793,15 @@ index c57d5da..25aec55 100644
     }
  
     public static void Algo_040(CBattleWork var0, CAction var1) {
+@@ -1211,7 +1215,7 @@ class CBattleAction extends CBattleActItem {
+             D3DXVECTOR3 var10000 = var2.m_vPos;
+             var10000.y += var3;
+             var3 -= 10.0F;
+-         } while(!(var2.m_vPos.y <= 0.0F));
++         } while(var2.m_vPos.y > 0.0F);
+ 
+          var3 = -var3 * 0.3F;
+          var2.m_vPos.y = 0.0F;
 @@ -2539,7 +2543,11 @@ class CBattleAction extends CBattleActItem {
        CBattleActCalc.AllDamage(var1.m_nObj, 9999, 1);
        CBattleActCalc.m_Btl.CheckDead();
@@ -841,10 +850,10 @@ index c57d5da..25aec55 100644
     }
  
     public static void MoveBackSword(CBattleWork var0, CAction var1) {
-diff --git a/src/CBattlePlayer.java b/src/CBattlePlayer.java
+diff --git a/CBattlePlayer.java b/CBattlePlayer.java
 index c6d4c11..45a05b6 100644
---- a/src/CBattlePlayer.java
-+++ b/src/CBattlePlayer.java
+--- a/CBattlePlayer.java
++++ b/CBattlePlayer.java
 @@ -1,12 +1,12 @@
  class CBattlePlayer {
     static final int MAX_MENU_SKILL = 4;
@@ -980,10 +989,10 @@ index c6d4c11..45a05b6 100644
 +      this.m_CmdMenu.OpenWindow(Vari.Scale(16), Vari.Scale(200));
     }
  }
-diff --git a/src/CBattleResult.java b/src/CBattleResult.java
+diff --git a/CBattleResult.java b/CBattleResult.java
 index 730ea7f..a4d3c9d 100644
---- a/src/CBattleResult.java
-+++ b/src/CBattleResult.java
+--- a/CBattleResult.java
++++ b/CBattleResult.java
 @@ -98,7 +98,7 @@ class CBattleResult {
        CSlipWindow var3 = new CSlipWindow();
        this.m_App.EntryWindow(var3);
@@ -1008,10 +1017,10 @@ index 730ea7f..a4d3c9d 100644
           this.m_aPerWindow[var3].OpenWindow();
           this.m_App.EntryWindow(this.m_aPerWindow[var3]);
        }
-diff --git a/src/CBtlPlayerStatus.java b/src/CBtlPlayerStatus.java
+diff --git a/CBtlPlayerStatus.java b/CBtlPlayerStatus.java
 index acf9e9b..1c6396f 100644
---- a/src/CBtlPlayerStatus.java
-+++ b/src/CBtlPlayerStatus.java
+--- a/CBtlPlayerStatus.java
++++ b/CBtlPlayerStatus.java
 @@ -11,7 +11,7 @@ class CBtlPlayerStatus {
     public void Create(ARpg var1, CBattleWork var2, int var3) {
        this.m_App = var1;
@@ -1054,15 +1063,15 @@ index acf9e9b..1c6396f 100644
           ++var1;
        } while(var1 < 6);
  
-diff --git a/src/CCalcBndBox.java b/src/CCalcBndBox.java
-index 6239e92..0845107 100644
---- a/src/CCalcBndBox.java
-+++ b/src/CCalcBndBox.java
+diff --git a/CCalcBndBox.java b/CCalcBndBox.java
+index 4e9e59b..0845107 100644
+--- a/CCalcBndBox.java
++++ b/CCalcBndBox.java
 @@ -39,7 +39,7 @@ class CCalcBndBox {
  
     private boolean CheckDisplayIn(int var1) {
        int var2;
--      for(var2 = 0; var2 < var1 && this.m_avCalc[var2].z <= 400.0F; ++var2) {
+-      for(var2 = 0; var2 < var1 && !(this.m_avCalc[var2].z > 400.0F); ++var2) {
 +      for(var2 = 0; var2 < var1 && this.m_avCalc[var2].z <= Vari.m_App.m_nWidth; ++var2) {
        }
  
@@ -1085,10 +1094,10 @@ index 6239e92..0845107 100644
                 ++var4;
              }
  
-diff --git a/src/CChrSelectHP.java b/src/CChrSelectHP.java
+diff --git a/CChrSelectHP.java b/CChrSelectHP.java
 index ce2a75f..bb16324 100644
---- a/src/CChrSelectHP.java
-+++ b/src/CChrSelectHP.java
+--- a/CChrSelectHP.java
++++ b/CChrSelectHP.java
 @@ -24,7 +24,7 @@ class CChrSelectHP extends CWindow {
     }
  
@@ -1161,10 +1170,10 @@ index ce2a75f..bb16324 100644
                       if (var1 < this.m_nChrMax) {
                          this.m_nSelect = var1;
                       }
-diff --git a/src/CCompWindow.java b/src/CCompWindow.java
+diff --git a/CCompWindow.java b/CCompWindow.java
 index 43a158d..317e840 100644
---- a/src/CCompWindow.java
-+++ b/src/CCompWindow.java
+--- a/CCompWindow.java
++++ b/CCompWindow.java
 @@ -11,13 +11,13 @@ class CCompWindow extends CWindow {
     public void Create(ARpg var1, int var2) {
        this.m_App = var1;
@@ -1206,10 +1215,10 @@ index 43a158d..317e840 100644
 +      this._Open(this.m_App.m_nCenterX, Vari.Scale(48) + this.GetHeight_Text(6) / 2, Vari.Scale(112), Vari.Scale(48));
     }
  }
-diff --git a/src/CComposition.java b/src/CComposition.java
+diff --git a/CComposition.java b/CComposition.java
 index 608b7e6..4b87df8 100644
---- a/src/CComposition.java
-+++ b/src/CComposition.java
+--- a/CComposition.java
++++ b/CComposition.java
 @@ -44,7 +44,7 @@ class CComposition extends CBaseShop {
        this.m_ListMenu.MakeList();
        super.m_App.EntryWindow(this.m_ListMenu);
@@ -1228,10 +1237,10 @@ index 608b7e6..4b87df8 100644
        this.m_Help.OpenWindow();
        this.m_PrmW.OpenWindow();
        super.m_App.LoopFrame(4);
-diff --git a/src/CDebug.java b/src/CDebug.java
+diff --git a/CDebug.java b/CDebug.java
 index 5479bf9..3a14baf 100644
---- a/src/CDebug.java
-+++ b/src/CDebug.java
+--- a/CDebug.java
++++ b/CDebug.java
 @@ -27,8 +27,14 @@ class CDebug {
           this.m_nFPScount -= 20;
        }
@@ -1285,10 +1294,10 @@ index 5479bf9..3a14baf 100644
     }
  
     public void DebugCameraControl() {
-diff --git a/src/CDispName.java b/src/CDispName.java
+diff --git a/CDispName.java b/CDispName.java
 index 7b846a5..c542fe8 100644
---- a/src/CDispName.java
-+++ b/src/CDispName.java
+--- a/CDispName.java
++++ b/CDispName.java
 @@ -16,8 +16,8 @@ class CDispName extends CWindow {
        this.m_App = var1;
        this.m_nWidth = this.GetWidth_Text(7);
@@ -1324,10 +1333,10 @@ index 7b846a5..c542fe8 100644
     }
  
     public void CloseWindow() {
-diff --git a/src/CDrawMap.java b/src/CDrawMap.java
+diff --git a/CDrawMap.java b/CDrawMap.java
 index 42e4253..7fb1a4d 100644
---- a/src/CDrawMap.java
-+++ b/src/CDrawMap.java
+--- a/CDrawMap.java
++++ b/CDrawMap.java
 @@ -1,3 +1,5 @@
 +import java.util.Arrays;
 +
@@ -1366,10 +1375,10 @@ index 42e4253..7fb1a4d 100644
                 this.CalcModel(var2.m_aModel[var11], var8, var9, var5, var6, 0);
                 if (var8.CheckDisplayIn()) {
                    var7.m_mWorld = this.GetTransform(3);
-diff --git a/src/CDrawSort.java b/src/CDrawSort.java
+diff --git a/CDrawSort.java b/CDrawSort.java
 index 06dec82..38e9b93 100644
---- a/src/CDrawSort.java
-+++ b/src/CDrawSort.java
+--- a/CDrawSort.java
++++ b/CDrawSort.java
 @@ -1,5 +1,5 @@
  class CDrawSort {
 -   static final int MAX_TABLE = 512;
@@ -1411,10 +1420,10 @@ index 06dec82..38e9b93 100644
  
        this.Clear();
     }
-diff --git a/src/CEquip.java b/src/CEquip.java
+diff --git a/CEquip.java b/CEquip.java
 index 1d647de..a197dc7 100644
---- a/src/CEquip.java
-+++ b/src/CEquip.java
+--- a/CEquip.java
++++ b/CEquip.java
 @@ -98,7 +98,7 @@ class CEquip {
  
           this.m_List.SetFlag(2);
@@ -1433,10 +1442,10 @@ index 1d647de..a197dc7 100644
        Vari.m_Help.OpenWindow();
     }
  }
-diff --git a/src/CEquipGem.java b/src/CEquipGem.java
+diff --git a/CEquipGem.java b/CEquipGem.java
 index b1f9d44..a013fbd 100644
---- a/src/CEquipGem.java
-+++ b/src/CEquipGem.java
+--- a/CEquipGem.java
++++ b/CEquipGem.java
 @@ -21,13 +21,13 @@ class CEquipGem {
           this.SetHelp(1);
        }
@@ -1462,10 +1471,10 @@ index b1f9d44..a013fbd 100644
              var2.SetPrm(this.m_nChrNo, this.m_Prm);
              if (var1 > 1) {
                 var2.SetFlag(16);
-diff --git a/src/CEquipList.java b/src/CEquipList.java
+diff --git a/CEquipList.java b/CEquipList.java
 index 236d9d4..b83b026 100644
---- a/src/CEquipList.java
-+++ b/src/CEquipList.java
+--- a/CEquipList.java
++++ b/CEquipList.java
 @@ -72,7 +72,7 @@ class CEquipList extends CBaseItemList {
        int var6 = var5.m_anEquip[this.m_nKind];
        this.m_Prm = new CPrmChangeWindow();
@@ -1475,10 +1484,10 @@ index 236d9d4..b83b026 100644
        super.m_App.EntryWindow(this.m_Prm);
     }
  
-diff --git a/src/CEquipPrmWin.java b/src/CEquipPrmWin.java
+diff --git a/CEquipPrmWin.java b/CEquipPrmWin.java
 index c098d71..9cbaf10 100644
---- a/src/CEquipPrmWin.java
-+++ b/src/CEquipPrmWin.java
+--- a/CEquipPrmWin.java
++++ b/CEquipPrmWin.java
 @@ -106,29 +106,41 @@ class CEquipPrmWin extends CWindow {
  
     public void SetWindowSize() {
@@ -1539,10 +1548,10 @@ index c098d71..9cbaf10 100644
     }
  
     public void CountOn() {
-diff --git a/src/CEventManage.java b/src/CEventManage.java
+diff --git a/CEventManage.java b/CEventManage.java
 index 6b54098..0151f63 100644
---- a/src/CEventManage.java
-+++ b/src/CEventManage.java
+--- a/CEventManage.java
++++ b/CEventManage.java
 @@ -81,7 +81,7 @@ class CEventManage {
     static final int MAX_STACK = 64;
     private int m_nMaxEventNum;
@@ -1622,10 +1631,10 @@ index 6b54098..0151f63 100644
        this.m_App.LoopFrame(4);
        int var2 = var1.LoopFrame();
        this.m_App.LoopFrame(4);
-diff --git a/src/CFadeIn.java b/src/CFadeIn.java
+diff --git a/CFadeIn.java b/CFadeIn.java
 index 058e2c2..7371830 100644
---- a/src/CFadeIn.java
-+++ b/src/CFadeIn.java
+--- a/CFadeIn.java
++++ b/CFadeIn.java
 @@ -116,7 +116,7 @@ class CFadeIn {
        for(int var3 = 0; var3 < var1; ++var3) {
           int var2 = 255 * (var1 - var3 - 1) / var1;
@@ -1635,10 +1644,10 @@ index 058e2c2..7371830 100644
           this.m_App.DoFrame();
           this.m_App.WaitRepaint(this.m_App.GetWaitFrame());
        }
-diff --git a/src/CGameApp.java b/src/CGameApp.java
+diff --git a/CGameApp.java b/CGameApp.java
 index aba09cd..a9fc2a4 100644
---- a/src/CGameApp.java
-+++ b/src/CGameApp.java
+--- a/CGameApp.java
++++ b/CGameApp.java
 @@ -7,6 +7,8 @@ import java.awt.FontMetrics;
  import java.awt.Graphics;
  import java.awt.Image;
@@ -1775,10 +1784,10 @@ index aba09cd..a9fc2a4 100644
        var2 = var2 + "data/mdl";
        if (var1 < 10) {
           var2 = var2 + "00" + var1 + "._k3";
-diff --git a/src/CGameMain.java b/src/CGameMain.java
+diff --git a/CGameMain.java b/CGameMain.java
 index 1d0725c..55a7451 100644
---- a/src/CGameMain.java
-+++ b/src/CGameMain.java
+--- a/CGameMain.java
++++ b/CGameMain.java
 @@ -26,6 +26,20 @@ class CGameMain {
     static final float ROCK_COR = 45.0F;
     static final float ROCK_MOV = 20.0F;
@@ -1864,10 +1873,10 @@ index 1d0725c..55a7451 100644
        return var1.Magnitude() < 20.0F ? -99999.9F : Calc3D.CalcAngleXZ(var1);
     }
  
-diff --git a/src/CGameOver.java b/src/CGameOver.java
+diff --git a/CGameOver.java b/CGameOver.java
 index 8afe1e4..75916b0 100644
---- a/src/CGameOver.java
-+++ b/src/CGameOver.java
+--- a/CGameOver.java
++++ b/CGameOver.java
 @@ -27,27 +27,27 @@ class CGameOver {
        var0.SetColor(Color.white);
        int var3;
@@ -1912,10 +1921,10 @@ index 8afe1e4..75916b0 100644
 +      var0.FillRect(0, 0, Vari.m_App.m_nWidth, Vari.m_App.m_nHeight);
     }
  }
-diff --git a/src/CGemWindow.java b/src/CGemWindow.java
+diff --git a/CGemWindow.java b/CGemWindow.java
 index 9c4cbc8..ca28b25 100644
---- a/src/CGemWindow.java
-+++ b/src/CGemWindow.java
+--- a/CGemWindow.java
++++ b/CGemWindow.java
 @@ -82,12 +82,12 @@ class CGemWindow extends CWindow {
        }
  
@@ -1940,10 +1949,10 @@ index 9c4cbc8..ca28b25 100644
           ++var5;
           ++var4;
        } while(var4 < 7);
-diff --git a/src/CHelpWindow.java b/src/CHelpWindow.java
+diff --git a/CHelpWindow.java b/CHelpWindow.java
 index 03af6b6..0dea318 100644
---- a/src/CHelpWindow.java
-+++ b/src/CHelpWindow.java
+--- a/CHelpWindow.java
++++ b/CHelpWindow.java
 @@ -9,7 +9,7 @@ class CHelpWindow extends CWindow {
     public void Create(ARpg var1, int var2) {
        this.m_App = var1;
@@ -1970,10 +1979,10 @@ index 03af6b6..0dea318 100644
 +      this._Open(Vari.Scale(256), this.m_nYPos + Vari.Scale(16), Vari.Scale(120), this.m_nYPos);
     }
  }
-diff --git a/src/CInitApplet.java b/src/CInitApplet.java
+diff --git a/CInitApplet.java b/CInitApplet.java
 index dccaa5c..ae7be3d 100644
---- a/src/CInitApplet.java
-+++ b/src/CInitApplet.java
+--- a/CInitApplet.java
++++ b/CInitApplet.java
 @@ -17,7 +17,7 @@ class CInitApplet {
     public void CreateDisplay() {
        this.ClearSurface();
@@ -2021,10 +2030,10 @@ index dccaa5c..ae7be3d 100644
 +      this.m_nTextYPos += Vari.Scale(16);
     }
  }
-diff --git a/src/CInitGame.java b/src/CInitGame.java
+diff --git a/CInitGame.java b/CInitGame.java
 index 0f05466..e240453 100644
---- a/src/CInitGame.java
-+++ b/src/CInitGame.java
+--- a/CInitGame.java
++++ b/CInitGame.java
 @@ -113,8 +113,8 @@ class CInitGame {
        D3DVIEWPORT8 var1 = new D3DVIEWPORT8();
        var1.X = 0;
@@ -2036,10 +2045,10 @@ index 0f05466..e240453 100644
        var0.SetViewport(var1);
     }
  }
-diff --git a/src/CInputNameWondow.java b/src/CInputNameWondow.java
+diff --git a/CInputNameWondow.java b/CInputNameWondow.java
 index 4498a2b..23b4c5f 100644
---- a/src/CInputNameWondow.java
-+++ b/src/CInputNameWondow.java
+--- a/CInputNameWondow.java
++++ b/CInputNameWondow.java
 @@ -128,10 +128,15 @@ class CInputNameWondow extends CWindow {
  
              int var2 = var5 + var4 * 13;
@@ -2097,10 +2106,10 @@ index 4498a2b..23b4c5f 100644
              this.m_App.LoopFrame(4);
              this.m_App.WaitKey_Display();
              var3.CloseWindow();
-diff --git a/src/CMenuWindow.java b/src/CMenuWindow.java
+diff --git a/CMenuWindow.java b/CMenuWindow.java
 index 01087b7..0ae58f1 100644
---- a/src/CMenuWindow.java
-+++ b/src/CMenuWindow.java
+--- a/CMenuWindow.java
++++ b/CMenuWindow.java
 @@ -105,7 +105,7 @@ class CMenuWindow extends CWindow {
     }
  
@@ -2153,10 +2162,10 @@ index 01087b7..0ae58f1 100644
                       if (var1 < this.m_nMenuNum && this.m_anFlag[var1] != 2) {
                          this.m_nSelect = var1;
                       }
-diff --git a/src/CMessManage.java b/src/CMessManage.java
+diff --git a/CMessManage.java b/CMessManage.java
 index a94870e..1649fd2 100644
---- a/src/CMessManage.java
-+++ b/src/CMessManage.java
+--- a/CMessManage.java
++++ b/CMessManage.java
 @@ -26,7 +26,7 @@ class CMessManage {
  
     public void ClearMessageStop() {
@@ -2229,10 +2238,10 @@ index a94870e..1649fd2 100644
 +      return Vari.Scale(this.m_nCurYPos * 24 + 8);
     }
  }
-diff --git a/src/CMessWindow.java b/src/CMessWindow.java
+diff --git a/CMessWindow.java b/CMessWindow.java
 index 5bcb998..696b1f4 100644
---- a/src/CMessWindow.java
-+++ b/src/CMessWindow.java
+--- a/CMessWindow.java
++++ b/CMessWindow.java
 @@ -10,9 +10,9 @@ class CMessWindow extends CWindow {
  
     public void Create(ARpg var1) {
@@ -2268,10 +2277,10 @@ index 5bcb998..696b1f4 100644
        }
  
        this._Open(var2, var5, var3, var4);
-diff --git a/src/CMoneyWindow.java b/src/CMoneyWindow.java
+diff --git a/CMoneyWindow.java b/CMoneyWindow.java
 index 299b98a..70713c4 100644
---- a/src/CMoneyWindow.java
-+++ b/src/CMoneyWindow.java
+--- a/CMoneyWindow.java
++++ b/CMoneyWindow.java
 @@ -11,13 +11,13 @@ class CMoneyWindow extends CWindow {
  
     public void Create(ARpg var1) {
@@ -2296,10 +2305,10 @@ index 299b98a..70713c4 100644
 +      this._Open(Vari.Scale(312), Vari.Scale(32), Vari.Scale(240), Vari.Scale(16));
     }
  }
-diff --git a/src/CNumWindow.java b/src/CNumWindow.java
+diff --git a/CNumWindow.java b/CNumWindow.java
 index 0ea31fe..45430f8 100644
---- a/src/CNumWindow.java
-+++ b/src/CNumWindow.java
+--- a/CNumWindow.java
++++ b/CNumWindow.java
 @@ -21,17 +21,23 @@ class CNumWindow extends CWindow {
        this.m_bMoveRight = false;
        this.m_bMoveLeft = false;
@@ -2338,10 +2347,23 @@ index 0ea31fe..45430f8 100644
     }
  
     public int LoopFrame() {
-diff --git a/src/CPassWordPanel.java b/src/CPassWordPanel.java
+diff --git a/CPartyLine.java b/CPartyLine.java
+index 188b9f9..4522d51 100644
+--- a/CPartyLine.java
++++ b/CPartyLine.java
+@@ -24,7 +24,7 @@ class CPartyLine {
+    }
+ 
+    public void AddPos(D3DXVECTOR3 var1, float var2) {
+-      if (!(Calc3D.Abs(var1.x - this.m_afXPos[0]) < 10.0F) || !(Calc3D.Abs(var1.z - this.m_afZPos[0]) < 10.0F)) {
++      if (Calc3D.Abs(var1.x - this.m_afXPos[0]) >= 10.0F || Calc3D.Abs(var1.z - this.m_afZPos[0]) >= 10.0F) {
+          this.AddPos2(var1, var2);
+       }
+    }
+diff --git a/CPassWordPanel.java b/CPassWordPanel.java
 index 73ee775..79262ce 100644
---- a/src/CPassWordPanel.java
-+++ b/src/CPassWordPanel.java
+--- a/CPassWordPanel.java
++++ b/CPassWordPanel.java
 @@ -70,7 +70,7 @@ class CPassWordPanel extends CWinEntry {
        this.m_Panel.add(this.m_Cancel);
        this.setLayout(new BorderLayout());
@@ -2351,10 +2373,10 @@ index 73ee775..79262ce 100644
     }
  
     public void ReleasePanel() {
-diff --git a/src/CPrmChangeWindow.java b/src/CPrmChangeWindow.java
+diff --git a/CPrmChangeWindow.java b/CPrmChangeWindow.java
 index 9c5ed99..4b6ed08 100644
---- a/src/CPrmChangeWindow.java
-+++ b/src/CPrmChangeWindow.java
+--- a/CPrmChangeWindow.java
++++ b/CPrmChangeWindow.java
 @@ -21,7 +21,7 @@ class CPrmChangeWindow extends CWindow {
           this.m_NowItem = Vari.GetItemData(this.m_nNowItem);
        }
@@ -2381,10 +2403,10 @@ index 9c5ed99..4b6ed08 100644
 +      this._Open(this.m_nXPos + Vari.Scale(56), this.m_nYPos + Vari.Scale(64), this.m_nXPos, this.m_nYPos);
     }
  }
-diff --git a/src/CQuiz.java b/src/CQuiz.java
+diff --git a/CQuiz.java b/CQuiz.java
 index 162efd3..b65417f 100644
---- a/src/CQuiz.java
-+++ b/src/CQuiz.java
+--- a/CQuiz.java
++++ b/CQuiz.java
 @@ -34,7 +34,7 @@ class CQuiz {
        } while(var7 < 4);
  
@@ -2394,10 +2416,10 @@ index 162efd3..b65417f 100644
        var8.LoopFrame(4);
     }
  
-diff --git a/src/CQuizTimeWindow.java b/src/CQuizTimeWindow.java
+diff --git a/CQuizTimeWindow.java b/CQuizTimeWindow.java
 index e85cf59..6a86ea1 100644
---- a/src/CQuizTimeWindow.java
-+++ b/src/CQuizTimeWindow.java
+--- a/CQuizTimeWindow.java
++++ b/CQuizTimeWindow.java
 @@ -1,8 +1,8 @@
  class CQuizTimeWindow extends CWindow {
 -   static final int WIN_WIDTH = 48;
@@ -2433,10 +2455,10 @@ index e85cf59..6a86ea1 100644
     }
  
     public int GetTime() {
-diff --git a/src/CSkillWindow.java b/src/CSkillWindow.java
+diff --git a/CSkillWindow.java b/CSkillWindow.java
 index 3fe6f1f..9a42027 100644
---- a/src/CSkillWindow.java
-+++ b/src/CSkillWindow.java
+--- a/CSkillWindow.java
++++ b/CSkillWindow.java
 @@ -11,11 +11,11 @@ class CSkillWindow extends CWindow {
  
     public void Create(ARpg var1) {
@@ -2462,10 +2484,10 @@ index 3fe6f1f..9a42027 100644
     }
  
     CSkillWindow() {
-diff --git a/src/CSkyHand.java b/src/CSkyHand.java
+diff --git a/CSkyHand.java b/CSkyHand.java
 index 90bbe73..482169a 100644
---- a/src/CSkyHand.java
-+++ b/src/CSkyHand.java
+--- a/CSkyHand.java
++++ b/CSkyHand.java
 @@ -59,7 +59,7 @@ class CSkyHand {
  
     private void OpenWindow() {
@@ -2475,10 +2497,10 @@ index 90bbe73..482169a 100644
        Vari.m_App.LoopFrame(4);
     }
  
-diff --git a/src/CSlipWindow.java b/src/CSlipWindow.java
+diff --git a/CSlipWindow.java b/CSlipWindow.java
 index 99cfb6c..9e122a6 100644
---- a/src/CSlipWindow.java
-+++ b/src/CSlipWindow.java
+--- a/CSlipWindow.java
++++ b/CSlipWindow.java
 @@ -12,7 +12,7 @@ class CSlipWindow extends CWindow {
        this.m_astrMess = new String[1];
        this.m_astrMess[0] = new String(var2);
@@ -2497,10 +2519,10 @@ index 99cfb6c..9e122a6 100644
        }
  
     }
-diff --git a/src/CStaffRoll.java b/src/CStaffRoll.java
+diff --git a/CStaffRoll.java b/CStaffRoll.java
 index f340fac..8562cd0 100644
---- a/src/CStaffRoll.java
-+++ b/src/CStaffRoll.java
+--- a/CStaffRoll.java
++++ b/CStaffRoll.java
 @@ -25,7 +25,7 @@ class CStaffRoll {
  
        do {
@@ -2532,10 +2554,10 @@ index f340fac..8562cd0 100644
        Vari.m_App.WaitRepaint(1000);
        Vari.m_SysFlag.ResetFlag(16);
        Vari.m_App.m_Flag.SetCameraVect1(3.1415927F);
-diff --git a/src/CStatusWin.java b/src/CStatusWin.java
+diff --git a/CStatusWin.java b/CStatusWin.java
 index 4411e26..2da6568 100644
---- a/src/CStatusWin.java
-+++ b/src/CStatusWin.java
+--- a/CStatusWin.java
++++ b/CStatusWin.java
 @@ -19,56 +19,56 @@ class CStatusWin extends CWindow {
        CChrParam var1 = Vari.GetChrPrm(this.m_nChrNo);
        Color var2 = Def.GetColor(0);
@@ -2618,10 +2640,10 @@ index 4411e26..2da6568 100644
 +      this._Open(var1, var2, Vari.Scale(48), Vari.Scale(16));
     }
  }
-diff --git a/src/CSysMenu.java b/src/CSysMenu.java
+diff --git a/CSysMenu.java b/CSysMenu.java
 index cb4898d..ebcebc9 100644
---- a/src/CSysMenu.java
-+++ b/src/CSysMenu.java
+--- a/CSysMenu.java
++++ b/CSysMenu.java
 @@ -32,7 +32,7 @@ class CSysMenu {
        } else {
           CUseItemList var1 = new CUseItemList();
@@ -2691,10 +2713,10 @@ index cb4898d..ebcebc9 100644
        this.m_App.LoopFrame(4);
  
        while(true) {
-diff --git a/src/CSysYesNo.java b/src/CSysYesNo.java
+diff --git a/CSysYesNo.java b/CSysYesNo.java
 index cd7b54a..62a1b85 100644
---- a/src/CSysYesNo.java
-+++ b/src/CSysYesNo.java
+--- a/CSysYesNo.java
++++ b/CSysYesNo.java
 @@ -3,13 +3,13 @@ class CSysYesNo {
        CSlipWindow var3 = new CSlipWindow();
        var3.Create(var1, var2);
@@ -2711,10 +2733,10 @@ index cd7b54a..62a1b85 100644
        var1.LoopFrame(4);
        int var5 = var4.LoopFrame();
        var3.CloseWindow();
-diff --git a/src/CTimeWindow.java b/src/CTimeWindow.java
+diff --git a/CTimeWindow.java b/CTimeWindow.java
 index 6a8d727..fbf514d 100644
---- a/src/CTimeWindow.java
-+++ b/src/CTimeWindow.java
+--- a/CTimeWindow.java
++++ b/CTimeWindow.java
 @@ -7,7 +7,7 @@ class CTimeWindow extends CWindow {
  
     public void Create(ARpg var1) {
@@ -2741,10 +2763,10 @@ index 6a8d727..fbf514d 100644
 +      this._Open(Vari.Scale(312), Vari.Scale(288), Vari.Scale(240), Vari.Scale(272));
     }
  }
-diff --git a/src/CTitle.java b/src/CTitle.java
+diff --git a/CTitle.java b/CTitle.java
 index a9a8064..b8e16ce 100644
---- a/src/CTitle.java
-+++ b/src/CTitle.java
+--- a/CTitle.java
++++ b/CTitle.java
 @@ -5,26 +5,26 @@ class CTitle {
  
     public static void DrawDisplay(ARpg var0) {
@@ -2890,10 +2912,10 @@ index a9a8064..b8e16ce 100644
        Vari.m_App.WaitRepaint(200);
     }
  
-diff --git a/src/CToolShop.java b/src/CToolShop.java
+diff --git a/CToolShop.java b/CToolShop.java
 index 80674e5..88321a9 100644
---- a/src/CToolShop.java
-+++ b/src/CToolShop.java
+--- a/CToolShop.java
++++ b/CToolShop.java
 @@ -89,7 +89,7 @@ class CToolShop extends CBaseShop {
        } else {
           this.CreateSellList();
@@ -2930,10 +2952,10 @@ index 80674e5..88321a9 100644
           super.m_App.LoopFrame(4);
        }
  
-diff --git a/src/CUseItemList.java b/src/CUseItemList.java
+diff --git a/CUseItemList.java b/CUseItemList.java
 index 388f0ee..a97ce67 100644
---- a/src/CUseItemList.java
-+++ b/src/CUseItemList.java
+--- a/CUseItemList.java
++++ b/CUseItemList.java
 @@ -38,7 +38,7 @@ class CUseItemList extends CBaseItemList {
  
     public boolean ExecItem(int var1) {
@@ -2952,10 +2974,10 @@ index 388f0ee..a97ce67 100644
     }
  
     public void UseItem(int var1) {
-diff --git a/src/CUseSkillList.java b/src/CUseSkillList.java
+diff --git a/CUseSkillList.java b/CUseSkillList.java
 index 5dfb4cd..d46cfb6 100644
---- a/src/CUseSkillList.java
-+++ b/src/CUseSkillList.java
+--- a/CUseSkillList.java
++++ b/CUseSkillList.java
 @@ -232,7 +232,7 @@ class CUseSkillList extends CMenuWindow {
  
     private void Open() {
@@ -2965,10 +2987,10 @@ index 5dfb4cd..d46cfb6 100644
        this.m_App.EntryWindow(this);
        this.m_App.EntryWindow(Vari.m_Help);
        this.OpenWindow(this.m_nXPos, this.m_nYPos);
-diff --git a/src/CWinEntry.java b/src/CWinEntry.java
+diff --git a/CWinEntry.java b/CWinEntry.java
 index ecd0676..82d84e1 100644
---- a/src/CWinEntry.java
-+++ b/src/CWinEntry.java
+--- a/CWinEntry.java
++++ b/CWinEntry.java
 @@ -16,7 +16,7 @@ class CWinEntry extends CGameApp {
           CTextObj var1 = this.m_aTextObj[var2];
           if (var1.Move()) {
@@ -2978,10 +3000,10 @@ index ecd0676..82d84e1 100644
           }
  
           ++var4;
-diff --git a/src/CWindow.java b/src/CWindow.java
+diff --git a/CWindow.java b/CWindow.java
 index 1b37097..bfd9cee 100644
---- a/src/CWindow.java
-+++ b/src/CWindow.java
+--- a/CWindow.java
++++ b/CWindow.java
 @@ -35,7 +35,7 @@ class CWindow extends CFlag {
     private boolean m_bRelease;
  
@@ -3078,10 +3100,10 @@ index 1b37097..bfd9cee 100644
 +      return Vari.Scale(16 + 16 * var1);
     }
  }
-diff --git a/src/CWorldMap.java b/src/CWorldMap.java
+diff --git a/CWorldMap.java b/CWorldMap.java
 index 523b25c..8f8e897 100644
---- a/src/CWorldMap.java
-+++ b/src/CWorldMap.java
+--- a/CWorldMap.java
++++ b/CWorldMap.java
 @@ -15,7 +15,9 @@ class CWorldMap extends CWindow {
     }
  
@@ -3110,10 +3132,343 @@ index 523b25c..8f8e897 100644
        }
  
     }
-diff --git a/src/Vari.java b/src/Vari.java
+diff --git a/MapImage.java b/MapImage.java
+new file mode 100644
+index 0000000..df190dc
+--- /dev/null
++++ b/MapImage.java
+@@ -0,0 +1,327 @@
++import javax.imageio.ImageIO;
++import java.awt.Color;
++import java.awt.Font;
++import java.awt.FontMetrics;
++import java.awt.Graphics2D;
++import java.awt.Polygon;
++import java.awt.geom.AffineTransform;
++import java.awt.geom.Rectangle2D;
++import java.awt.image.BufferedImage;
++import java.io.IOException;
++import java.io.InputStream;
++import java.util.Arrays;
++import java.util.HashMap;
++import java.util.Map;
++import java.util.stream.IntStream;
++
++/**
++ * Class for handling the cropped two-dimensional image of a three-dimensional map viewed from directly above in
++ * ExtractMaps mode.
++ */
++public class MapImage {
++   /**
++    * The colors of the custom objects (strings, arrows, etc.) to be drawn on the map image for each map number, where
++    * null means the default color (blue for light maps, yellow for dark maps). Note that for ease of viewing, the color
++    * of the arrows on the mirror object is fixed to blue regardless of this.
++    */
++   private static final Map<Integer, Color> CUSTOM_OBJECT_COLORS_PER_MAP = new HashMap<>();
++   private final BufferedImage image;
++   private final Graphics2D graphics;
++   private final int mapNumber;
++   private final CAreaParam cAreaParam;
++   private final CMapData cMapData;
++   private final int mapXNum;
++   private final int mapZNum;
++   private final int leftMargin;
++   private final int topMargin;
++   private final int rightMargin;
++   private final int bottomMargin;
++   private final int horizontalMargin;
++   private final int verticalMargin;
++   private final float squareWidth;
++   private final float squareHeight;
++
++   static {
++      for(int mapNumber : Arrays.asList(30, 44, 50, 63, 68, 70, 77, 88, 95, 97)) {
++         CUSTOM_OBJECT_COLORS_PER_MAP.put(mapNumber, Color.YELLOW);
++      }
++   }
++
++   /**
++    * Reads the cropped map image corresponding to the specified map number from the specified InputStream. Calculates
++    * values such as the number of margin squares and the size of one square in the image.
++    *
++    * @param inputStream An InputStream to read the map image.
++    * @param mapNumber   The map number corresponding to the map image.
++    * @throws IOException When the image cannot be loaded.
++    */
++   public MapImage(InputStream inputStream, int mapNumber) throws IOException {
++      BufferedImage rawImage = ImageIO.read(inputStream);
++      // Wrap the image in a new BufferedImage with the image type specified, because drawing custom objects on the raw
++      // image may result in a different color than the specified color.
++      this.image = new BufferedImage(rawImage.getWidth(), rawImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
++      this.graphics = this.image.createGraphics();
++      this.graphics.drawImage(rawImage, 0, 0, null);
++
++      this.mapNumber = mapNumber;
++
++      this.cAreaParam = Vari.m_App.m_Stage.GetStage(mapNumber);
++      this.cMapData = this.cAreaParam.m_Map;
++
++      this.graphics.setColor(
++         CUSTOM_OBJECT_COLORS_PER_MAP.getOrDefault(
++            mapNumber,
++            this.cAreaParam.m_nLightMode == 0 ? Color.BLUE : Color.YELLOW
++         )
++      );
++
++      this.mapXNum = this.cAreaParam.GetMapXNum();
++      this.mapZNum = this.cAreaParam.GetMapZNum();
++
++      this.leftMargin = this.GetLeftMargin();
++      this.topMargin = this.GetTopMargin();
++      this.rightMargin = this.GetRightMargin();
++      this.bottomMargin = this.GetBottomMargin();
++
++      this.horizontalMargin = this.leftMargin + this.rightMargin;
++      this.verticalMargin = this.topMargin + this.bottomMargin;
++
++      this.squareWidth = (float)this.image.getWidth() / (this.mapXNum - this.horizontalMargin);
++      this.squareHeight = (float)this.image.getHeight() / (this.mapZNum - this.verticalMargin);
++   }
++
++   public BufferedImage GetImage() {
++      return this.image;
++   }
++
++   public CAreaParam GetAreaParam() {
++      return this.cAreaParam;
++   }
++
++   public float GetSquareWidth() {
++      return this.squareWidth;
++   }
++
++   public float GetSquareHeight() {
++      return this.squareHeight;
++   }
++
++   /**
++    * Returns the number of the building object located at the specified x- and z-coordinates on the map corresponding
++    * to the map image.
++    *
++    * @param mapX The x-coordinate on the map.
++    * @param mapZ The z-coordinate on the map.
++    * @return The number of the building object located at the specified x- and z-coordinates.
++    */
++   public int GetMapModel(int mapX, int mapZ) {
++      return CMapData.GetMapModel(this.cMapData.GetMapTable(this.cMapData.GetPtr(mapX, mapZ)) >> 2);
++   }
++
++   /**
++    * Returns the number of the ground object located at the specified x- and z-coordinates on the map corresponding to
++    * the map image.
++    *
++    * @param mapX The x-coordinate on the map.
++    * @param mapZ The z-coordinate on the map.
++    * @return The number of the ground object located at the specified x- and z-coordinates.
++    */
++   public int GetGroundModel(int mapX, int mapZ) {
++      return CMapData.GetGroundModel(this.cAreaParam.GetGroundNum(this.cMapData.GetPtr(mapX, mapZ)));
++   }
++
++   /**
++    * Returns whether the position of the specified x- and z-coordinates on the map is NOT a blank square with no
++    * building or ground objects on it.
++    *
++    * @param mapX The x-coordinate on the map.
++    * @param mapZ The z-coordinate on the map.
++    * @return True if the position of the specified x- and z-coordinates on the map is NOT a blank square, false
++    * otherwise.
++    */
++   private boolean IsNotBlankSquare(int mapX, int mapZ) {
++      return this.GetMapModel(mapX, mapZ) != 19 || this.GetGroundModel(mapX, mapZ) != -1;
++   }
++
++   /**
++    * Returns the number of blank squares on the left side of the map in the horizontal direction.
++    *
++    * @return The number of blank squares on the left side of the map in the horizontal direction.
++    */
++   private int GetLeftMargin() {
++      for(int x = 0; x < this.mapXNum; x++) {
++         for(int z = 0; z < this.mapZNum; z++) {
++            if (this.IsNotBlankSquare(x, z)) {
++               return x;
++            }
++         }
++      }
++      return -1;
++   }
++
++   /**
++    * Returns the number of blank squares at the top of the map in the vertical direction.
++    *
++    * @return The number of blank squares at the top of the map in the vertical direction.
++    */
++   private int GetTopMargin() {
++      for(int z = 0; z < this.mapZNum; z++) {
++         for(int x = 0; x < this.mapXNum; x++) {
++            if (this.IsNotBlankSquare(x, z)) {
++               return z;
++            }
++         }
++      }
++      return -1;
++   }
++
++   /**
++    * Returns the number of blank squares on the right side of the map in the horizontal direction.
++    *
++    * @return The number of blank squares on the right side of the map in the horizontal direction.
++    */
++   private int GetRightMargin() {
++      for(int x = this.mapXNum - 1; x >= 0; x--) {
++         for(int z = this.mapZNum - 1; z >= 0; z--) {
++            if (this.IsNotBlankSquare(x, z)) {
++               return this.mapXNum - 1 - x;
++            }
++         }
++      }
++      return -1;
++   }
++
++   /**
++    * Returns the number of blank squares at the bottom of the map in the vertical direction.
++    *
++    * @return The number of blank squares at the bottom of the map in the vertical direction.
++    */
++   private int GetBottomMargin() {
++      for(int z = this.mapZNum - 1; z >= 0; z--) {
++         for(int x = this.mapXNum - 1; x >= 0; x--) {
++            if (this.IsNotBlankSquare(x, z)) {
++               return this.mapZNum - 1 - z;
++            }
++         }
++      }
++      return -1;
++   }
++
++   /**
++    * Draws the specified string on the map image with the specified x- and z-coordinates on the map as the center of
++    * the string.
++    *
++    * @param str      The string to be drawn.
++    * @param mapX     The x-coordinate of the center of the string on the map.
++    * @param mapZ     The z-coordinate of the center of the string on the map.
++    * @param fontSize The font size of the string.
++    */
++   public void DrawString(String str, float mapX, float mapZ, int fontSize) {
++      Graphics2D g = (Graphics2D)this.graphics.create();
++
++      Font font = new Font("Osaka-Mono", Font.PLAIN, fontSize);
++      g.setFont(font);
++
++      FontMetrics fontMetrics = g.getFontMetrics();
++      Rectangle2D bounds = font.createGlyphVector(fontMetrics.getFontRenderContext(), str).getVisualBounds();
++      float imageX =
++         (float)(this.squareWidth * (mapX - this.leftMargin) + (this.squareWidth - bounds.getWidth()) / 2.0F);
++      float imageY =
++         (float)(this.squareHeight * (mapZ - this.topMargin) + (this.squareHeight + bounds.getHeight()) / 2.0F);
++
++      if (imageX < 0) {
++         imageX += this.squareWidth;
++      }
++      if (imageY < 0) {
++         imageY += this.squareHeight;
++      }
++
++      g.drawString(str, imageX, imageY);
++      g.dispose();
++   }
++
++   /**
++    * Draws an arrow on the map image from the start point to the end point specified by the coordinates on the map.
++    *
++    * @param startMapX The x-coordinate of the arrow's starting point on the map.
++    * @param startMapZ The z-coordinate of the arrow's starting point on the map.
++    * @param endMapX   The x-coordinate of the arrow's ending point on the map.
++    * @param endMapZ   The z-coordinate of the arrow's ending point on the map.
++    */
++   public void DrawArrow(int startMapX, int startMapZ, int endMapX, int endMapZ) {
++      Graphics2D g = (Graphics2D)this.graphics.create();
++
++      int startMapModel = this.GetMapModel(startMapX, startMapZ);
++      int startGroundModel = this.GetGroundModel(startMapX, startMapZ);
++
++      // Whether the start point is an upstairs object (34) or a downstairs ground (8)
++      boolean isStairsStart = (startMapModel == 34 || startGroundModel == 8);
++      // Whether the start point is a mirror object (51)
++      boolean isMirrorStart = (startMapModel == 51);
++
++      // For ease of viewing, the color of the arrow on the mirror object is fixed to blue.
++      if (isMirrorStart) {
++         g.setColor(Color.BLUE);
++      }
++
++      // The arrow's start and end points on the image are set to the center of the map square.
++      int startImageX = (int)(this.squareWidth * (startMapX - this.leftMargin) + this.squareWidth / 2.0F);
++      int startImageY = (int)(this.squareHeight * (startMapZ - this.topMargin) + this.squareHeight / 2.0F);
++
++      int endImageX = (int)(this.squareWidth * (endMapX - this.leftMargin) + this.squareWidth / 2.0F);
++      int endImageY = (int)(this.squareHeight * (endMapZ - this.topMargin) + this.squareHeight / 2.0F);
++
++      // If any of the eight squares adjacent to the end point of the arrow has an object corresponding to the starting
++      // object (i.e., mirror for mirror, stairs for stairs), change the end point to that square.
++      ADJACENT_SQUARE_SEARCH_LOOP:
++      for(int xDifference : IntStream.rangeClosed(-1, 1).toArray()) {
++         for(int zDifference : IntStream.rangeClosed(-1, 1).toArray()) {
++            if (xDifference != 0 || zDifference != 0) {
++               int endAdjacentX = endMapX + xDifference;
++               int endAdjacentZ = endMapZ + zDifference;
++
++               int endAdjacentMapModel = this.GetMapModel(endAdjacentX, endAdjacentZ);
++               int endAdjacentGroundModel = this.GetGroundModel(endAdjacentX, endAdjacentZ);
++
++               // Whether the square adjacent to the end point is an upstairs object (34) or a downstairs ground (8)
++               boolean isStairsEndAdjacent = (endAdjacentMapModel == 34 || endAdjacentGroundModel == 8);
++               // Whether the square adjacent to the end point is a mirror object (51)
++               boolean isMirrorEndAdjacent = (endAdjacentMapModel == 51);
++
++               if ((isStairsStart && isStairsEndAdjacent) || (isMirrorStart && isMirrorEndAdjacent)) {
++                  endImageX += (int)(xDifference * this.squareWidth);
++                  endImageY += (int)(zDifference * this.squareHeight);
++                  break ADJACENT_SQUARE_SEARCH_LOOP;
++               }
++            }
++         }
++      }
++
++      // If the start and end points are the same, don't draw an arrow (specifically, the mirror that plays the Part 2
++      // staff role in Adventurer's Labyrinth LV5).
++      if (startImageX == endImageX && startImageY == endImageY) {
++         return;
++      }
++
++      // Draw the line segment of the arrow.
++      g.drawLine(startImageX, startImageY, endImageX, endImageY);
++
++      // Draw the arrowhead.
++      AffineTransform tx = g.getTransform();
++      tx.translate(endImageX, endImageY);
++      double angle = Math.atan2(endImageY - startImageY, endImageX - startImageX);
++      tx.rotate(angle - Math.PI / 2.0D);
++
++      g.setTransform(tx);
++
++      Polygon arrowHead = new Polygon();
++      int length = (int)(this.squareWidth / 4.0F);
++      arrowHead.addPoint(0, length);
++      arrowHead.addPoint(-length, -length);
++      arrowHead.addPoint(length, -length);
++
++      g.fill(arrowHead);
++
++      g.dispose();
++   }
++}
+diff --git a/Vari.java b/Vari.java
 index d65c8b4..99596f7 100644
---- a/src/Vari.java
-+++ b/src/Vari.java
+--- a/Vari.java
++++ b/Vari.java
 @@ -38,6 +38,9 @@ class Vari {
     public static boolean m_bTitle;
     public static boolean m_bSkillWin;
