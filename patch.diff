@@ -768,7 +768,7 @@ index b2092df..7c86215 100644
  
     public static void AllWShield(CBattleWork var0, CAction var1) {
 diff --git a/CBattleAction.java b/CBattleAction.java
-index 6a97c25..25aec55 100644
+index c57d5da..25aec55 100644
 --- a/CBattleAction.java
 +++ b/CBattleAction.java
 @@ -178,7 +178,9 @@ class CBattleAction extends CBattleActItem {
@@ -793,15 +793,6 @@ index 6a97c25..25aec55 100644
     }
  
     public static void Algo_040(CBattleWork var0, CAction var1) {
-@@ -1211,7 +1215,7 @@ class CBattleAction extends CBattleActItem {
-             D3DXVECTOR3 var10000 = var2.m_vPos;
-             var10000.y += var3;
-             var3 -= 10.0F;
--         } while(!(var2.m_vPos.y <= 0.0F));
-+         } while(var2.m_vPos.y > 0.0F);
- 
-          var3 = -var3 * 0.3F;
-          var2.m_vPos.y = 0.0F;
 @@ -2539,7 +2543,11 @@ class CBattleAction extends CBattleActItem {
        CBattleActCalc.AllDamage(var1.m_nObj, 9999, 1);
        CBattleActCalc.m_Btl.CheckDead();
@@ -1064,14 +1055,14 @@ index acf9e9b..1c6396f 100644
        } while(var1 < 6);
  
 diff --git a/CCalcBndBox.java b/CCalcBndBox.java
-index 4e9e59b..0845107 100644
+index 6239e92..0845107 100644
 --- a/CCalcBndBox.java
 +++ b/CCalcBndBox.java
 @@ -39,7 +39,7 @@ class CCalcBndBox {
  
     private boolean CheckDisplayIn(int var1) {
        int var2;
--      for(var2 = 0; var2 < var1 && !(this.m_avCalc[var2].z > 400.0F); ++var2) {
+-      for(var2 = 0; var2 < var1 && this.m_avCalc[var2].z <= 400.0F; ++var2) {
 +      for(var2 = 0; var2 < var1 && this.m_avCalc[var2].z <= Vari.m_App.m_nWidth; ++var2) {
        }
  
@@ -2347,19 +2338,6 @@ index 0ea31fe..45430f8 100644
     }
  
     public int LoopFrame() {
-diff --git a/CPartyLine.java b/CPartyLine.java
-index 188b9f9..4522d51 100644
---- a/CPartyLine.java
-+++ b/CPartyLine.java
-@@ -24,7 +24,7 @@ class CPartyLine {
-    }
- 
-    public void AddPos(D3DXVECTOR3 var1, float var2) {
--      if (!(Calc3D.Abs(var1.x - this.m_afXPos[0]) < 10.0F) || !(Calc3D.Abs(var1.z - this.m_afZPos[0]) < 10.0F)) {
-+      if (Calc3D.Abs(var1.x - this.m_afXPos[0]) >= 10.0F || Calc3D.Abs(var1.z - this.m_afZPos[0]) >= 10.0F) {
-          this.AddPos2(var1, var2);
-       }
-    }
 diff --git a/CPassWordPanel.java b/CPassWordPanel.java
 index 73ee775..79262ce 100644
 --- a/CPassWordPanel.java
