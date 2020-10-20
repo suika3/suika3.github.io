@@ -1,0 +1,3142 @@
+diff --git a/src/ARpg.java b/src/ARpg.java
+index d065bba..c1f63f2 100644
+--- a/src/ARpg.java
++++ b/src/ARpg.java
+@@ -1,5 +1,22 @@
++import javax.imageio.ImageIO;
+ import java.awt.Color;
++import java.awt.Dimension;
++import java.awt.Graphics2D;
+ import java.awt.Image;
++import java.awt.image.BufferedImage;
++import java.io.IOException;
++import java.nio.file.FileAlreadyExistsException;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.Paths;
++import java.util.Arrays;
++import java.util.Comparator;
++import java.util.List;
++import java.util.Map;
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.stream.Collectors;
++import java.util.stream.IntStream;
++import java.util.stream.Stream;
+ 
+ public class ARpg extends CPassWordPanel implements Runnable {
+    public CModel[] m_aModel;
+@@ -29,6 +46,18 @@ public class ARpg extends CPassWordPanel implements Runnable {
+    static int m_nWaitFlag;
+    private static final float[] m_afQuakeTable = new float[]{10.0F, -10.0F, 20.0F, -20.0F};
+ 
++   // The following fields were added by an unofficial patch.
++   private static final String[] CIRCLED_NUMBERS = {
++      "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩",
++      "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳"
++   };
++   public int m_nWidth;
++   public int m_nHeight;
++   public int m_nCenterX;
++   public int m_nCenterY;
++   public float m_fScale;
++   public boolean m_bIsAbLightColorSet;
++
+    public void DrawChara_Battle() {
+       CModelTrans var4 = new CModelTrans();
+       float var5 = this.m_Flag.GetCameraVect();
+@@ -110,7 +139,8 @@ public class ARpg extends CPassWordPanel implements Runnable {
+       super.m_Render.SetRenderState(8, var2.m_cAmbient);
+       Vari.m_fFogStart = var2.m_fFogStart;
+       Vari.m_fFogEnd = var2.m_fFogEnd;
+-      if (Calc3D.NearZero(var2.m_fFogStart) && Calc3D.NearZero(var2.m_fFogEnd)) {
++      // In Top-Down View, don't draw the fog.
++      if ((Calc3D.NearZero(var2.m_fFogStart) && Calc3D.NearZero(var2.m_fFogEnd)) || Vari.m_bTopDownView) {
+          super.m_Render.SetRenderState(4, 0);
+       } else {
+          super.m_Render.SetRenderState(4, 1);
+@@ -120,7 +150,8 @@ public class ARpg extends CPassWordPanel implements Runnable {
+       this.SetFogDistance();
+       super.m_Render.SetRenderState(3, true);
+       D3DLIGHT8 var3 = new D3DLIGHT8();
+-      if (var2.m_nLightMode == 0) {
++      // In Top-Down View, don't darken the map such as a cave.
++      if (var2.m_nLightMode == 0 || Vari.m_bTopDownView) {
+          var3.m_nType = 2;
+       } else {
+          var3.m_nType = 1;
+@@ -190,6 +221,245 @@ public class ARpg extends CPassWordPanel implements Runnable {
+ 
+    }
+ 
++   public void ExtractMaps() {
++      // Create a `maps` directory for the output image files (ignore the exception if it already exists).
++      Path directory = Paths.get("./maps");
++      try {
++         Files.createDirectory(directory);
++      } catch (FileAlreadyExistsException ignored) {
++      } catch (IOException e) {
++         e.printStackTrace();
++         this.pause();
++      }
++
++      // Save all 100 maps, numbered from 0 to 99, to a file.
++      IntStream
++         .rangeClosed(0, 99)
++         .forEach((mapNumber) -> {
++            System.out.println(mapNumber);
++            // Switch the map.
++            this.m_Game.XChgArea(mapNumber, 0, 0, 0);
++            // Set the camera and draw the objects. (This calls CGameMain#SetCamera.)
++            this.DrawDisplay();
++
++            // Convert the screen to an image and save it to a file.
++            BufferedImage image =
++               new BufferedImage(
++                  super.m_OffsImage.getWidth(null),
++                  super.m_OffsImage.getHeight(null),
++                  BufferedImage.TYPE_INT_ARGB
++               );
++            Graphics2D graphics = image.createGraphics();
++            graphics.drawImage(super.m_OffsImage, 0, 0, null);
++            graphics.dispose();
++
++            Path file = directory.resolve(String.format("Map%02d.png", mapNumber));
++            try {
++               ImageIO.write(image, "png", Files.newOutputStream(file));
++            } catch (IOException e) {
++               e.printStackTrace();
++               this.pause();
++            }
++
++            // Crop the image using ImageMagick's `mogrify` command. (This modifies the file "in place".)
++            try {
++               new ProcessBuilder("mogrify", "-trim", file.toString()).start().waitFor();
++            } catch (IOException | InterruptedException e) {
++               e.printStackTrace();
++               this.pause();
++            }
++
++            // Load the cropped image to write additional information on the map.
++            MapImage mapImage = null;
++            try {
++               mapImage = new MapImage(Files.newInputStream(file), mapNumber);
++            } catch (IOException e) {
++               e.printStackTrace();
++               this.pause();
++            }
++            // To suppress the "local variables referenced from a lambda expression must be final or effectively final"
++            // error, copy the value to an effectively final temp variable.
++            MapImage finalMapImage = mapImage;
++
++            CAreaParam cAreaParam = finalMapImage.GetAreaParam();
++            float squareWidth = finalMapImage.GetSquareWidth();
++
++            // For use in walkthrough descriptions, number the locations on the map where the items are found.
++            //
++            // The item acquisition events on the map are stored in two places: the cAreaParam.m_acTreasure array
++            // (treasure chest, urn, chest of drawers, etc.) and part of the cAreaParam.m_acWEvent array (safe,
++            // Mysterious Tablet bookshelf, etc.).
++            //
++            // First, divide the elements of the cAreaParam.m_acWEvent array into item acquisition events and other
++            // events.
++            List<CWEvent> nonItemWallEvents;
++            // Exclude the Abandoned Building Underground (73) (empty treasure chest with an event).
++            if (mapNumber == 73) {
++               nonItemWallEvents = Arrays.asList(cAreaParam.m_acWEvent);
++            } else {
++               Map<Boolean, List<CWEvent>> partitionedWallEvents =
++                  Stream
++                     .of(cAreaParam.m_acWEvent)
++                     .collect(
++                        Collectors.partitioningBy((cWEvent) -> {
++                           int mapModel = finalMapImage.GetMapModel(cWEvent.m_nXPos, cWEvent.m_nZPos);
++                           // If the object is a safe (52),
++                           return mapModel == 52
++                              // Noliette's (15) chest of drawers (33) or bookshelf (36),
++                              || (mapNumber == 15 && (mapModel == 33 || mapModel == 36))
++                              // or Qu'il Fait Bon's (25), Mi-Collè's (38), or the Ox Demon King's Castle's (48)
++                              // bookshelf (36)
++                              || (Arrays.asList(25, 38, 48).contains(mapNumber) && mapModel == 36);
++                        })
++                     );
++               List<CWEvent> itemWallEvents = partitionedWallEvents.get(true);
++               nonItemWallEvents = partitionedWallEvents.get(false);
++
++               // Concatenate the cAreaParam.m_acTreasure array with the itemWallEvents list and draw circled numbers at
++               // all locations where the item acquisition events are set, in the order of their Manhattan distance from
++               // the top left of the map.
++               AtomicInteger itemNumber = new AtomicInteger();
++               Stream
++                  .concat(
++                     Stream
++                        .of(cAreaParam.m_acTreasure)
++                        // Exclude the Takarabakon that do not have an item (2876). (See CAreaParam#CheckTreasure.)
++                        .filter((cTreasure) -> cTreasure.m_nItem != 2876)
++                        .map((cTreasure) -> Arrays.asList(cTreasure.m_nXPos, cTreasure.m_nZPos)),
++                     itemWallEvents.stream().map((cWEvent) -> Arrays.asList(cWEvent.m_nXPos, cWEvent.m_nZPos))
++                  )
++                  .sorted(Comparator.comparingInt((coordinates) -> coordinates.get(0) + coordinates.get(1)))
++                  .forEach((coordinates) -> {
++                     finalMapImage.DrawString(
++                        CIRCLED_NUMBERS[itemNumber.getAndIncrement()],
++                        coordinates.get(0) - 0.5F,
++                        coordinates.get(1) - 0.5F,
++                        (int)Math.max(squareWidth, 16)
++                     );
++                  });
++            }
++
++            // Draw filled circles in the locations where the "wall" events that should be noted are set (beds with free
++            // recovery, bookshelves with safe PINs, broken walls, Tsubomie, Nurikabe, etc.).
++            //
++            // Exclude Noliette (15) (paid bed), Onmyouji Training Mountain (23) (Flappy's chest of drawers), Hamburger
++            // Castle (37) (walls with burgers), and Past Noliette (75) (Una's bed).
++            if (!Arrays.asList(15, 23, 37, 75).contains(mapNumber)) {
++               nonItemWallEvents
++                  .stream()
++                  .filter((cWEvent) -> {
++                     int mapModel = finalMapImage.GetMapModel(cWEvent.m_nXPos, cWEvent.m_nZPos);
++                     // If the object is an urn (25), pillar (26), gray wall (31), chest of drawers (33), bookshelf
++                     // (36), bed head (40), bed foot (41), Nurikabe (43), or blue wall (54)
++                     return Arrays.asList(25, 26, 31, 33, 36, 40, 41, 43, 54).contains(mapModel)
++                        // Exclude the Town of Au Bon's (1) bookshelf (36).
++                        && !(mapNumber == 1 && mapModel == 36)
++                        // Exclude the Noliette Underground's (16) northern urns.
++                        && !(mapNumber == 16 && cWEvent.m_nZPos <= 8)
++                        // Exclude the Adventurer's Tower's (20) sixth floor's southernmost urn.
++                        && !(mapNumber == 20 && cWEvent.m_nZPos == 62)
++                        // Exclude the Ox Demon King's Castle's (48) gray wall (31).
++                        && !(mapNumber == 48 && mapModel == 31)
++                        // Exclude Royce's (72) pillar (26).
++                        && !(mapNumber == 72 && mapModel == 26);
++                  })
++                  .forEach((cWEvent) -> {
++                     int fontSize = (int)Math.max(squareWidth / 2.0F, 8);
++
++                     int mapModel = finalMapImage.GetMapModel(cWEvent.m_nXPos, cWEvent.m_nZPos);
++                     // For the bookshelf (36), bed head (40), and bed foot (41), if there is the same type of (or a
++                     // corresponding) object with an event in the four adjacent squares, draw only one circle in the
++                     // middle of them.
++                     if (Arrays.asList(36, 40, 41).contains(mapModel)) {
++                        for(int xDifference : IntStream.rangeClosed(-1, 1).toArray()) {
++                           for(int zDifference : IntStream.rangeClosed(-1, 1).toArray()) {
++                              if (Math.abs(xDifference) + Math.abs(zDifference) == 1) {
++                                 int adjacentX = cWEvent.m_nXPos + xDifference;
++                                 int adjacentZ = cWEvent.m_nZPos + zDifference;
++                                 int adjacentMapModel = finalMapImage.GetMapModel(adjacentX, adjacentZ);
++                                 if ((
++                                       (mapModel == 36 && adjacentMapModel == mapModel)
++                                          || (mapModel == 40 && adjacentMapModel == 41)
++                                          || (mapModel == 41 && adjacentMapModel == 40)
++                                    )
++                                    && Stream
++                                       .of(cAreaParam.m_acWEvent)
++                                       .anyMatch((cWEvt) -> cWEvt.m_nXPos == adjacentX && cWEvt.m_nZPos == adjacentZ)
++                                 ) {
++                                    if (xDifference == -1 || zDifference == -1) {
++                                       finalMapImage.DrawString(
++                                          "●",
++                                          (cWEvent.m_nXPos + adjacentX) / 2.0F,
++                                          (cWEvent.m_nZPos + adjacentZ) / 2.0F,
++                                          fontSize
++                                       );
++                                    }
++                                    return;
++                                 }
++                              }
++                           }
++                        }
++                     }
++
++                     finalMapImage.DrawString("●", cWEvent.m_nXPos, cWEvent.m_nZPos, fontSize);
++                  });
++            }
++
++            // Draw arrows between staircase objects whose "scope" events are set to teleport to locations on the same
++            // map.
++            Stream
++               .of(cAreaParam.m_acScope)
++               // If it is a map switching event (m_nKind is 1) and the destination is the same map
++               .filter((cScopeEvent) -> cScopeEvent.m_nKind == 1 && cScopeEvent.m_cSqu.m_nAreaNo == mapNumber)
++               .forEach((cScopeEvent) -> {
++                  finalMapImage.DrawArrow(
++                     cScopeEvent.m_nXPos,
++                     cScopeEvent.m_nZPos,
++                     cScopeEvent.m_cSqu.m_nXPos,
++                     cScopeEvent.m_cSqu.m_nZPos
++                  );
++               });
++
++            // Draw arrows between mirror objects whose "wall" events are set to teleport to locations on the same map.
++            Stream
++               .of(cAreaParam.m_acWEvent)
++               // If the event is on a mirror object (51)
++               .filter((cWEvent) -> finalMapImage.GetMapModel(cWEvent.m_nXPos, cWEvent.m_nZPos) == 51)
++               .forEach((cWEvent) -> {
++                  // Extract the destination coordinates from the event data.
++                  CEventData cEventData = Vari.m_Event.m_acEvtData[cWEvent.m_nEvent];
++                  int destinationX;
++                  int destinationZ;
++                  for(int i = 0;; i++) {
++                     byte value = cEventData.Get(i);
++                     byte nextValue = cEventData.Get(i + 1);
++                     // Extract a teleportation event in the same map (12) or a map switching event (56) that switches
++                     // to the same map. (See CEventManage#Run. Since it is difficult to properly parse the event data
++                     // by distinguishing between opcodes and operands, we perform an equality test without
++                     // distinguishing them.)
++                     if ((value == 12 && nextValue == 0) || value == 56) {
++                        // Exclude a map switching event (56) that does not switch to the same map.
++                        if (value == 56 && nextValue != mapNumber) {
++                           return;
++                        }
++                        destinationX = cEventData.Get(i + 2);
++                        destinationZ = cEventData.Get(i + 3);
++                        break;
++                     }
++                  }
++                  finalMapImage.DrawArrow(cWEvent.m_nXPos, cWEvent.m_nZPos, destinationX, destinationZ);
++               });
++
++            // Overwrite the image.
++            try {
++               ImageIO.write(finalMapImage.GetImage(), "png", Files.newOutputStream(file));
++            } catch (IOException e) {
++               e.printStackTrace();
++               this.pause();
++            }
++         });
++   }
++
+    public void MainGame() {
+       new D3DXVECTOR3();
+       new D3DXVECTOR3(100.0F, 100.0F, 100.0F);
+@@ -197,6 +467,14 @@ public class ARpg extends CPassWordPanel implements Runnable {
+       boolean var2 = false;
+       this.m_bGameOver = false;
+ 
++      // In ExtractMaps mode, the saving of all map images to a file is done here. This process can only be done when
++      // the applet is running with `appletviewer` and requires ImageMagick's `mogrify` command. When the process is
++      // complete, the applet exits immediately.
++      if (super.m_bExtractMaps) {
++         this.ExtractMaps();
++         System.exit(0);
++      }
++
+       while(true) {
+          if (var2 && !this.m_bShip) {
+             int var1 = this.m_Game.CheckEncount();
+@@ -214,7 +492,10 @@ public class ARpg extends CPassWordPanel implements Runnable {
+          }
+ 
+          CNpcMove.Move();
++
++         // #MainFrame calls #DrawDisplay, which calls CGameMain#SetCamera.
+          this.MainFrame();
++
+          if (this.m_Game.m_nCatsEye > 0 && (this.m_nMainCount & 3) == 0) {
+             CGameMain var10000 = this.m_Game;
+             var10000.m_nCatsEye += -1;
+@@ -228,16 +509,64 @@ public class ARpg extends CPassWordPanel implements Runnable {
+             this.m_SysMenu.Run();
+          }
+ 
+-         if (super.m_nKeyC == 1) {
++         // Add the ability to toggle Top-Down View when the player presses the D key. (Top-Down View is implemented in
++         // CGameMain#SetCamera and is automatically enabled in ExtractMaps mode. The pressed key is recognized by the
++         // CGameApp class.)
++         //
++         // If the D key is down in Normal View or Close View, switch to Top-Down View.
++         // If the D key is down in Top-Down View, switch to Normal View.
++         // If the C key is down in Top-Down View, switch to Close View.
++         // If a key is down while another key is being held down, it is not recognized.
++         //
++         // Boolean variables that indicate whether each key is down (false if another key is being held down). The
++         // value of super.m_nKeyXXX is 0 if the key is NOT down, 1 if the key is down, and 2 if the key is being held
++         // down.
++         boolean isCKeyDown = (super.m_nKeyC == 1 && super.m_nKeyD == 0);
++         boolean isDKeyDown = (super.m_nKeyD == 1 && super.m_nKeyC == 0);
++         // Before switching views, save whether it was in Top-Down View or not.
++         boolean isInTopDownView = Vari.m_bTopDownView;
++
++         // If the C key is down (exclusively),
++         if (isCKeyDown) {
+             super.m_nKeyC = 2;
+-            if (Vari.m_bDistView) {
+-               Vari.m_bDistView = false;
+-            } else {
+-               Vari.m_bDistView = true;
+-            }
++            // toggle Close View (note that Vari.m_bDistView=true means Normal View, false means Close View)
++            Vari.m_bDistView ^= true;
++            // and turn off Top-Down View.
++            Vari.m_bTopDownView = false;
++         }
++         // If the D key is down (exclusively),
++         else if (isDKeyDown) {
++            super.m_nKeyD = 2;
++            // toggle Top-Down View
++            Vari.m_bTopDownView ^= true;
++            // and turn off Close View.
++            Vari.m_bDistView = true;
++         }
+ 
++         // If Close View is toggled (or Top-Down View is switched to Normal View, because it may have been switched
++         // from Close View originally), set the range of the fog.
++         if (isCKeyDown || (isInTopDownView && isDKeyDown)) {
+             this.SetFogDistance();
+          }
++
++         // If Top-Down View is toggled (or switched to Close View), set the fog and map lighting type (in Top-Down
++         // View, don't draw the fog and don't darken the map).
++         if (isDKeyDown || (isInTopDownView && isCKeyDown)) {
++            CAreaParam cAreaParam = this.GetAreaParam();
++
++            if (!Calc3D.NearZero(cAreaParam.m_fFogStart) || !Calc3D.NearZero(cAreaParam.m_fFogEnd)) {
++               if (Vari.m_bTopDownView) {
++                  super.m_Render.SetRenderState(4, 0);
++               } else {
++                  super.m_Render.SetRenderState(4, 1);
++                  super.m_Render.SetRenderState(7, cAreaParam.m_cFogColor);
++               }
++            }
++
++            if (cAreaParam.m_nLightMode != 0) {
++               super.m_Render.m_liLight.m_nType = (Vari.m_bTopDownView ? 2 : 1);
++            }
++         }
+       }
+    }
+ 
+@@ -481,7 +810,8 @@ public class ARpg extends CPassWordPanel implements Runnable {
+    }
+ 
+    public void DrawDisplay_Field() {
+-      if (this.m_Play.GetEvtFlag(330)) {
++      // In Top-Down View, don't draw background stars in the universe map.
++      if (this.m_Play.GetEvtFlag(330) && !Vari.m_bTopDownView) {
+          Vari.m_Cosmo.Draw(super.m_Render, super.m_OffsGraph);
+       }
+ 
+@@ -491,7 +821,8 @@ public class ARpg extends CPassWordPanel implements Runnable {
+       this.DrawEffect();
+       this.m_Sort.Sort();
+       this.DrawAll();
+-      if (!this.m_Fade.IsFade()) {
++      // In ExtractMaps mode, don't draw a compass.
++      if (!this.m_Fade.IsFade() && !super.m_bExtractMaps) {
+          this.m_Game.DrawCompass();
+       }
+ 
+@@ -609,7 +940,7 @@ public class ARpg extends CPassWordPanel implements Runnable {
+          var2 = var2 + var1 + ".gif";
+       }
+ 
+-      this.m_aImage[var1] = this.getImage(this.getCodeBase(), var2);
++      this.m_aImage[var1] = this.getImage(this.m_DataFileBase, var2);
+       this.AddMediaT(this.m_aImage[var1], var1);
+       return this.WaitMediaT(var1);
+    }
+@@ -631,7 +962,12 @@ public class ARpg extends CPassWordPanel implements Runnable {
+       this.m_NowStagePrm.SetTreasure(this);
+       this.m_Game.InitParty();
+       this.m_Game.SetCamera();
+-      if (!Vari.GetSysFlag(1)) {
++      // In ExtractMaps mode, play the event only on maps where the screen after the event play is more useful for
++      // navigation (Point (7), Tower of Trials, Top (10), Clermont (12), Onmyouji Training Mountain (23), Hamburger
++      // Castle (37), Royce' (72), Past West Riverbanks, Deepest Part (77), and Universe Layer 3 (Space Station) (92)).
++      if (!Vari.GetSysFlag(1)
++         && (!super.m_bExtractMaps || Arrays.asList(7, 10, 12, 23, 37, 72, 77, 92).contains(var1))
++      ) {
+          Vari.m_Event.Run(this.m_NowStagePrm.m_nEventNo, -1);
+       }
+ 
+@@ -643,7 +979,7 @@ public class ARpg extends CPassWordPanel implements Runnable {
+       this.m_bErrorLoad = false;
+       Vari.Create();
+       CInitApplet var1 = Vari.cInit;
+-      Vari.cInit.Init(super.m_OffsGraph, 400, 320, 280);
++      Vari.cInit.Init(super.m_OffsGraph, this.m_nWidth, this.m_nHeight, 280);
+       var1.CreateDisplay();
+       CInitGame.StartUpMessage(var1);
+       this.repaint();
+@@ -702,11 +1038,11 @@ public class ARpg extends CPassWordPanel implements Runnable {
+ 
+       this.ClearSeFlag();
+       this.DispLoadInfo("Stage");
+-      this.m_Stage.Load(this.getCodeBase().toString() + "data/stage._su");
++      this.m_Stage.Load(this.m_DataFileBase.toString() + "data/stage._su");
+       this.DispLoadInfo("Event");
+-      Vari.m_Event.Load(this.getCodeBase().toString() + "data/event.sui");
++      Vari.m_Event.Load(this.m_DataFileBase.toString() + "data/event.sui");
+       this.DispLoadInfo("Param");
+-      Vari.m_PrmAll.Load(this.getCodeBase().toString() + "data/param._da");
++      Vari.m_PrmAll.Load(this.m_DataFileBase.toString() + "data/param._da");
+       this.UpdateLoadCount();
+       this.EntryWindow(this.m_MessWin);
+       this.EntryWindow(Vari.m_Menu);
+@@ -802,7 +1138,7 @@ public class ARpg extends CPassWordPanel implements Runnable {
+             var1 = var2.GetName();
+          }
+ 
+-         this.DrawFontF(8, 8, var1, Color.white);
++         this.DrawFontF(Vari.Scale(8), Vari.Scale(8), var1, Color.white);
+       }
+ 
+    }
+@@ -875,7 +1211,7 @@ public class ARpg extends CPassWordPanel implements Runnable {
+       CSlipWindow var2 = new CSlipWindow();
+       var2.Create(this, var1);
+       this.EntryWindow(var2);
+-      var2.OpenWindow(200, 160);
++      var2.OpenWindow(this.m_nCenterX, this.m_nCenterY);
+       this.LoopFrame(8);
+       this.WaitKey_Display();
+       var2.CloseWindow();
+@@ -931,7 +1267,10 @@ public class ARpg extends CPassWordPanel implements Runnable {
+ 
+       while(true) {
+          this.InitSystem();
+-         CTitle.Run(this);
++         // In ExtractMaps mode, don't show the title screen.
++         if (!super.m_bExtractMaps) {
++            CTitle.Run(this);
++         }
+          this.m_Play.m_Time.Start();
+          this.m_Game.InitPrm();
+          this.MainGame();
+@@ -942,8 +1281,17 @@ public class ARpg extends CPassWordPanel implements Runnable {
+       System.out.println("すいかが食べたい");
+       System.out.println("２００２－２００８　きゃとみゅう");
+       System.out.println("http://www.din.or.jp/~null/");
++
++      // Get the width and height of the applet specified in HTML.
++      Dimension size = this.getSize();
++      this.m_nWidth = size.width;
++      this.m_nHeight = size.height;
++      this.m_nCenterX = this.m_nWidth / 2;
++      this.m_nCenterY = this.m_nHeight / 2;
++      this.m_fScale = (float)this.m_nWidth / Def.SCR_WIDTH;
++
+       Vari.m_App = this;
+-      this.Create(400, 320);
++      this.Create(this.m_nWidth, this.m_nHeight);
+       this.CreatePassPanel();
+       this.CreateInputPass();
+       this.m_MoneyWindow.Create(this);
+@@ -1003,7 +1351,7 @@ public class ARpg extends CPassWordPanel implements Runnable {
+       CSlipWindow var5 = new CSlipWindow();
+       var5.Create(this, var2);
+       this.EntryWindow(var5);
+-      var5.OpenWindow(200, 160);
++      var5.OpenWindow(this.m_nCenterX, this.m_nCenterY);
+       this.LoopFrame(4);
+       this.PlaySe(3);
+       this.LoopFrame(8);
+diff --git a/src/BtlCmdWin.java b/src/BtlCmdWin.java
+index df408e7..c796851 100644
+--- a/src/BtlCmdWin.java
++++ b/src/BtlCmdWin.java
+@@ -105,11 +105,16 @@ class BtlCmdWin extends CWindow {
+                var2 = 0;
+             }
+ 
+-            int var3 = 8 + (var1 & 1) * 80;
++            int var3 = Vari.Scale(8 + (var1 & 1) * 80);
+             int var4 = this.GetYPos(var1 / 2);
+-            this.DrawFont(var3, var4, Def.GetBattleCommand(this.m_nChrNo, var5), Def.GetColor(var2), 16);
++            this.DrawFont(var3, var4, Def.GetBattleCommand(this.m_nChrNo, var5), Def.GetColor(var2), Vari.Scale(16));
+             if (var1 == this.m_nSelect) {
+-               this.m_App.m_OffsGraph.drawLine(var3 + this.GetXPos(), var4 + this.GetYPos() + 16, var3 + this.GetXPos() + 64, var4 + this.GetYPos() + 16);
++               this.m_App.m_OffsGraph.drawLine(
++                  var3 + this.GetXPos(),
++                  var4 + this.GetYPos() + Vari.Scale(16),
++                  var3 + this.GetXPos() + Vari.Scale(64),
++                  var4 + this.GetYPos() + Vari.Scale(16)
++               );
+             }
+ 
+             ++var1;
+@@ -165,7 +170,12 @@ class BtlCmdWin extends CWindow {
+    public void OpenWindow() {
+       this.m_nSelect = 0;
+       this.m_nDecision = 9999;
+-      this._Open(128 + this.GetWidth_Text(9) / 2, 16 + this.GetHeight_Text(6) / 2, 128, 16);
++      this._Open(
++         Vari.Scale(128) + this.GetWidth_Text(9) / 2,
++         Vari.Scale(16) + this.GetHeight_Text(6) / 2,
++         Vari.Scale(128),
++         Vari.Scale(16)
++      );
+    }
+ 
+    public void Select() {
+@@ -218,7 +228,7 @@ class BtlCmdWin extends CWindow {
+                if (this.m_App.m_bMouseMove) {
+                   if (this.IsMouseIn()) {
+                      byte var1 = -1;
+-                     int var2 = (this.m_App.m_nMouseX - super.m_nPosX - 8) / 16;
++                     int var2 = (this.m_App.m_nMouseX - super.m_nPosX - Vari.Scale(8)) / Vari.Scale(16);
+                      if (var2 >= 0 && var2 <= 3) {
+                         var1 = 0;
+                      }
+@@ -227,7 +237,7 @@ class BtlCmdWin extends CWindow {
+                         var1 = 1;
+                      }
+ 
+-                     int var3 = (this.m_App.m_nMouseY - super.m_nPosY - 8) / 24;
++                     int var3 = (this.m_App.m_nMouseY - super.m_nPosY - Vari.Scale(8)) / Vari.Scale(24);
+                      if (var1 != -1) {
+                         int var4 = var1 + var3 * 2;
+                         if (var4 < this.m_nMax) {
+diff --git a/src/CAbilityWin.java b/src/CAbilityWin.java
+index c7a1567..8c6aa16 100644
+--- a/src/CAbilityWin.java
++++ b/src/CAbilityWin.java
+@@ -23,13 +23,13 @@ class CAbilityWin extends CWindow {
+       new String();
+       String var5 = "ページ";
+       var5 = var5 + Def.ZENKAKU_SUJI[this.m_nPage + 1];
+-      this.DrawFont(8, this.GetYPos(0), var5, Def.GetColor(0), 16);
++      this.DrawFont(Vari.Scale(8), this.GetYPos(0), var5, Def.GetColor(0), Vari.Scale(16));
+       int var9 = 0;
+ 
+       do {
+          int var8 = this.m_nPage * 16 + var9;
+          if (var2.GetFlag(var8)) {
+-            int var6 = 8 + (var9 & 1) * 9 * 16;
++            int var6 = Vari.Scale(8 + (var9 & 1) * 9 * 16);
+             int var7 = this.GetYPos((var9 >> 1) + 1);
+             Color var3;
+             if (var2.GetFlagM(var8)) {
+@@ -40,7 +40,7 @@ class CAbilityWin extends CWindow {
+ 
+             CSkillData var4 = Vari.GetSkillData(var8);
+             if (var4 != null) {
+-               this.DrawFont(var6, var7, var4.m_strName, var3, 16);
++               this.DrawFont(var6, var7, var4.m_strName, var3, Vari.Scale(16));
+             }
+          }
+ 
+@@ -63,16 +63,16 @@ class CAbilityWin extends CWindow {
+    }
+ 
+    public int GetYPos(int var1) {
+-      return 8 + 24 * var1;
++      return Vari.Scale(8 + 24 * var1);
+    }
+ 
+    public void OpenWindow(int var1, int var2, int var3) {
+       this.m_nPage = var1;
+       this.m_nDispX = var2;
+       this.m_nDispY = var3;
+-      int var4 = this.m_nDispX + 144;
+-      int var5 = this.m_nDispY + 112;
+-      this._Create((CWinEntry)this.m_App, Vari.m_WinColor, 288, 224, 4);
++      int var4 = this.m_nDispX + Vari.Scale(144);
++      int var5 = this.m_nDispY + Vari.Scale(112);
++      this._Create((CWinEntry)this.m_App, Vari.m_WinColor, Vari.Scale(288), Vari.Scale(224), 4);
+       this._Open(var4, var5, this.m_nDispX, this.m_nDispY);
+    }
+ 
+diff --git a/src/CBR_MoneyWindow.java b/src/CBR_MoneyWindow.java
+index 985fd91..869bfbb 100644
+--- a/src/CBR_MoneyWindow.java
++++ b/src/CBR_MoneyWindow.java
+@@ -9,19 +9,25 @@ class CBR_MoneyWindow extends CWindow {
+    public void Create(ARpg var1, CBattleInfo var2) {
+       this.m_App = var1;
+       this.m_Info = var2;
+-      this._Create((CWinEntry)var1, Vari.m_WinColor, 336, 96, 4);
++      this._Create((CWinEntry)var1, Vari.m_WinColor, Vari.Scale(336), Vari.Scale(96), 4);
+    }
+ 
+    public void DrawMessage() {
+-      this.DrawFont(8, 8, "獲得金　　　　　　　　獲得アイテム", Def.GetColor(0), 16);
++      this.DrawFont(Vari.Scale(8), Vari.Scale(8), "獲得金　　　　　　　　獲得アイテム", Def.GetColor(0), Vari.Scale(16));
+       new String();
+       String var1 = Calc3D.NumberString(this.m_Info.m_nGold, 5);
+       var1 = var1 + "Ｇ";
+-      this.DrawFont(24, 24, var1, Def.GetColor(0), 16);
++      this.DrawFont(Vari.Scale(24), Vari.Scale(24), var1, Def.GetColor(0), Vari.Scale(16));
+ 
+       for(int var3 = 0; var3 < this.m_Info.m_nItemPtr; ++var3) {
+          CItemData var2 = Vari.GetItemData(this.m_Info.m_anItem[var3]);
+-         this.DrawFont(200, 24 + var3 * 16, var2.m_strName, Def.GetColor(0), 16);
++         this.DrawFont(
++            this.m_App.m_nCenterX,
++            Vari.Scale(24 + var3 * 16),
++            var2.m_strName,
++            Def.GetColor(0),
++            Vari.Scale(16)
++         );
+       }
+ 
+    }
+@@ -44,6 +50,6 @@ class CBR_MoneyWindow extends CWindow {
+    }
+ 
+    public void OpenWindow() {
+-      this._Open(200, 56, 32, 8);
++      this._Open(this.m_App.m_nCenterX, Vari.Scale(56), Vari.Scale(32), Vari.Scale(8));
+    }
+ }
+diff --git a/src/CBR_PersonWindow.java b/src/CBR_PersonWindow.java
+index 4f8130b..46d0611 100644
+--- a/src/CBR_PersonWindow.java
++++ b/src/CBR_PersonWindow.java
+@@ -14,18 +14,18 @@ class CBR_PersonWindow extends CWindow {
+       this.m_nYPos = var3;
+       this.m_nExp = var4;
+       this.m_nAP = var5;
+-      this._Create((CWinEntry)var1, Vari.m_WinColor, 336, 48, 4);
++      this._Create((CWinEntry)var1, Vari.m_WinColor, Vari.Scale(336), Vari.Scale(48), 4);
+    }
+ 
+    public void DrawMessage() {
+-      this.DrawFont(24, 8, this.m_BChr.m_Prm.GetName(), Def.GetColor(0), 16);
++      this.DrawFont(Vari.Scale(24), Vari.Scale(8), this.m_BChr.m_Prm.GetName(), Def.GetColor(0), Vari.Scale(16));
+       new String();
+       String var1 = "ＥＸＰ　";
+       var1 = var1 + Calc3D.NumberString(this.m_nExp, 5);
+-      this.DrawFont(168, 8, var1, Def.GetColor(0), 16);
++      this.DrawFont(Vari.Scale(168), Vari.Scale(8), var1, Def.GetColor(0), Vari.Scale(16));
+       var1 = "ＡＰ　　";
+       var1 = var1 + Calc3D.NumberString(this.m_nAP, 5);
+-      this.DrawFont(168, 24, var1, Def.GetColor(0), 16);
++      this.DrawFont(Vari.Scale(168), Vari.Scale(24), var1, Def.GetColor(0), Vari.Scale(16));
+    }
+ 
+    public void CloseWindow() {
+@@ -42,7 +42,7 @@ class CBR_PersonWindow extends CWindow {
+    }
+ 
+    public void OpenWindow() {
+-      this._Open(200, this.m_nYPos + 24, 32, this.m_nYPos);
++      this._Open(this.m_App.m_nCenterX, this.m_nYPos + Vari.Scale(24), Vari.Scale(32), this.m_nYPos);
+    }
+ 
+    CBR_PersonWindow() {
+diff --git a/src/CBaseHelp.java b/src/CBaseHelp.java
+index d362c63..1bc32f2 100644
+--- a/src/CBaseHelp.java
++++ b/src/CBaseHelp.java
+@@ -12,11 +12,11 @@ class CBaseHelp extends CMenuWindowLR {
+ 
+    public void OpenAllWindow() {
+       super.m_App.EntryWindow(this);
+-      this.OpenWindow(48, 24);
++      this.OpenWindow(Vari.Scale(48), Vari.Scale(24));
+       super.m_App.EntryWindow(this.m_Help);
+       this.m_Help.SetText(0, "");
+       this.m_Help.SetText(1, "");
+-      this.m_Help.OpenWindow(200, 240);
++      this.m_Help.OpenWindow(super.m_App.m_nCenterX, Vari.Scale(240));
+       super.m_App.LoopFrame(4);
+    }
+ 
+diff --git a/src/CBaseShop.java b/src/CBaseShop.java
+index e481c66..477eff8 100644
+--- a/src/CBaseShop.java
++++ b/src/CBaseShop.java
+@@ -26,7 +26,7 @@ class CBaseShop {
+       var1.SetMenuText(0, "はい");
+       var1.SetMenuText(1, "いいえ");
+       this.m_App.EntryWindow(var1);
+-      var1.OpenWindow(16, 16);
++      var1.OpenWindow(Vari.Scale(16), Vari.Scale(16));
+       this.m_App.LoopFrame(4);
+       int var2 = var1.LoopFrame();
+       this.m_App.ReleaseWindow(var1);
+diff --git a/src/CBattleActEfc.java b/src/CBattleActEfc.java
+index b2092df..7c86215 100644
+--- a/src/CBattleActEfc.java
++++ b/src/CBattleActEfc.java
+@@ -293,6 +293,7 @@ class CBattleActEfc extends CBattleActCalc {
+       CBattleActCalc.m_App.m_Render.SetBright(1.0F);
+       CBattleActCalc.m_App.m_Render.SetLight(var3);
+       CBattleActCalc.m_App.m_Fade.XChgColor(var3, var4, 16);
++      CBattleActCalc.m_App.m_bIsAbLightColorSet = true;
+    }
+ 
+    public static void InvokeSong(CBattleWork var0, int var1) {
+@@ -322,6 +323,7 @@ class CBattleActEfc extends CBattleActCalc {
+       CBattleActCalc.m_App.m_Fade.AmbientOn();
+       CBattleActCalc.m_App.m_Render.SetLight(CBattleActCalc.m_Btl.m_liStart);
+       CBattleFunc.FadeIn(8);
++      CBattleActCalc.m_App.m_bIsAbLightColorSet = false;
+    }
+ 
+    public static void AllWShield(CBattleWork var0, CAction var1) {
+diff --git a/src/CBattleAction.java b/src/CBattleAction.java
+index c57d5da..25aec55 100644
+--- a/src/CBattleAction.java
++++ b/src/CBattleAction.java
+@@ -178,7 +178,9 @@ class CBattleAction extends CBattleActItem {
+       CBattleActCalc.AllDamage(var1.m_nObj, 9999, 2);
+       CBattleActCalc.m_Btl.CheckDead();
+       CBattleActCalc.m_Btl.LoopFrame(8);
+-      CBattleActEfc.ResetAbLightColor();
++      if (CBattleActCalc.m_App.m_bIsAbLightColorSet) {
++         CBattleActEfc.ResetAbLightColor();
++      }
+    }
+ 
+    public static void Algo_023(CBattleWork var0, CAction var1) {
+@@ -395,7 +397,9 @@ class CBattleAction extends CBattleActItem {
+       CBattleActCalc.AllDamage(var1.m_nObj, 9999, 6);
+       CBattleActCalc.m_Btl.CheckDead();
+       CBattleActCalc.m_Btl.LoopFrame(8);
+-      CBattleActEfc.ResetAbLightColor();
++      if (CBattleActCalc.m_App.m_bIsAbLightColorSet) {
++         CBattleActEfc.ResetAbLightColor();
++      }
+    }
+ 
+    public static void Algo_040(CBattleWork var0, CAction var1) {
+@@ -2539,7 +2543,11 @@ class CBattleAction extends CBattleActItem {
+       CBattleActCalc.AllDamage(var1.m_nObj, 9999, 1);
+       CBattleActCalc.m_Btl.CheckDead();
+       CBattleActCalc.m_Btl.LoopFrame(8);
+-      CBattleActEfc.ResetAbLightColor();
++      // If a player uses a Metal Hermit's ultimate elemental ability without using a preparation move (which is
++      // possible in EnableEnemyAbilities mode), don't reset the screen (same for #Algo_411, #Algo_412, and #Algo_413).
++      if (CBattleActCalc.m_App.m_bIsAbLightColorSet) {
++         CBattleActEfc.ResetAbLightColor();
++      }
+    }
+ 
+    public static void Algo_007(CBattleWork var0, CAction var1) {
+@@ -2935,13 +2943,17 @@ class CBattleAction extends CBattleActItem {
+       int var5;
+       for(var5 = var2; var5 < var3; ++var5) {
+          CBattleWork var4 = Vari.GetBChrWork(var5);
+-         if (!var4.IsAlive()) {
+-            CBattleActCalc.ReviveChr(var4);
+-         }
++         // Fixed NPE when a player uses "Super Guard" (available in Mode=1 and EnableEnemyAbilities) against a player
++         // party of two or fewer characters or an enemy party.
++         try {
++            if (!var4.IsAlive()) {
++               CBattleActCalc.ReviveChr(var4);
++            }
+ 
+-         CBattleActCalc.MagicHeal(var0, var4, 1000);
+-         CBattleActCalc.MakeShield(var4, 0);
+-         CBattleActCalc.SetShield(var0, var4);
++            CBattleActCalc.MagicHeal(var0, var4, 1000);
++            CBattleActCalc.MakeShield(var4, 0);
++            CBattleActCalc.SetShield(var0, var4);
++         } catch (NullPointerException ignored) {}
+       }
+ 
+       var5 = 0;
+@@ -3008,7 +3020,9 @@ class CBattleAction extends CBattleActItem {
+       CBattleActCalc.AllDamage(var1.m_nObj, 9999, 5);
+       CBattleActCalc.m_Btl.CheckDead();
+       CBattleActCalc.m_Btl.LoopFrame(8);
+-      CBattleActEfc.ResetAbLightColor();
++      if (CBattleActCalc.m_App.m_bIsAbLightColorSet) {
++         CBattleActEfc.ResetAbLightColor();
++      }
+    }
+ 
+    public static void MoveBackSword(CBattleWork var0, CAction var1) {
+diff --git a/src/CBattlePlayer.java b/src/CBattlePlayer.java
+index c6d4c11..45a05b6 100644
+--- a/src/CBattlePlayer.java
++++ b/src/CBattlePlayer.java
+@@ -1,12 +1,12 @@
+ class CBattlePlayer {
+    static final int MAX_MENU_SKILL = 4;
+-   static final int MAX_LIST_SKILL = 20;
++   static final int MAX_LIST_SKILL = 200;
+    private ARpg m_App;
+    private CBattleMain m_Btl;
+    private CMenuWindow m_CmdMenu = new CMenuWindow();
+    private int[][] m_anChrTable = new int[][]{{0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}};
+    private int[] m_anTableMax = new int[]{0, 0};
+-   private int[] m_anSkillList = new int[20];
++   private int[] m_anSkillList = new int[MAX_LIST_SKILL];
+ 
+    public void MakeSkillMenu(CBattleWork var1, CAbility var2, CMenuWindowLR var3, int var4, int var5) {
+       int var6 = var1.m_Prm.GetMP();
+@@ -34,8 +34,61 @@ class CBattlePlayer {
+          }
+       }
+ 
+-      if (this.m_App.m_bLowSpec) {
+-         int[] var13 = new int[]{181, 178, 200};
++      // In EnableEnemyAbilities mode, add a bunch of enemy abilities to the end of all battle commands by default.
++      if (this.m_App.m_bLowSpec || this.m_App.m_bEnableEnemyAbilities) {
++         int[] var13 =
++            this.m_App.m_bLowSpec
++               ? new int[]{181, 178, 200}
++               : new int[]{
++                  187, // 会心の２連撃
++                  188, // ひよこ停止剣
++                  189, // 駿速旋風舞
++                  190, // 吸血高揚斬
++                  194, // 究極の死神剣
++                  18, // 応援
++                  21, // おたけび
++                  23, // チャクラ
++                  24, // 大防御
++                  25, // 界王拳
++                  50, // 恩恵
++                  51, // 解毒
++                  54, // 纏水
++                  56, // 目薬
++                  57, // 祝福
++                  60, // 開錠
++                  61, // 世界
++                  64, // リジェーネ
++                  66, // ゴーレム
++                  40, // 幸運符
++                  68, // 縛り糸
++                  82, // 勇気の唄
++                  84, // 覚醒の唄
++                  85, // 風護の唄
++                  86, // 寛ぎの唄
++                  158, // 吸い尽くす
++                  186, // 超チョベリバ
++                  197, // ナイトメア
++                  198, // 滅殺符
++                  159, // 光の鍵
++                  185, // 光の矢雨
++                  195, // 流星群
++                  199, // ５連アルティマ
++                  201, // エスーナ
++                  204, // 無限のスイカ
++                  81, // うな玉拳
++                  181, // 無理無理無理
++                  206, // 瞬連撃
++                  209, // 白夜
++                  178, // コスモトリップ
++                  169, // 究極の火
++                  170, // 究極の氷
++                  171, // 究極の風
++                  172, // 究極の雷
++                  152, // 乱８撃
++                  164, // 四閃
++                  203, // ４霊斬
++                  200, // 超ガード
++               };
+          int var12 = 0;
+ 
+          do {
+@@ -52,13 +105,13 @@ class CBattlePlayer {
+             this.m_anSkillList[var9] = var13[var12];
+             ++var9;
+             ++var12;
+-         } while(var12 < 3);
++         } while(var12 < var13.length);
+       }
+ 
+       var3.MakeList();
+       var3.SetFlag(1);
+       this.m_App.EntryWindow(var3);
+-      var3.OpenWindow(24, 216);
++      var3.OpenWindow(Vari.Scale(24), Vari.Scale(216));
+    }
+ 
+    public int DecideObject(CBattleWork var1, int var2) {
+@@ -226,7 +279,7 @@ class CBattlePlayer {
+       CBtlItemList var2 = new CBtlItemList();
+       var2.SetListMax(4);
+       var2.CreateList(this.m_App, this, var1);
+-      var2.Run(24, 216);
++      var2.Run(Vari.Scale(24), Vari.Scale(216));
+       return var2.GetAction();
+    }
+ 
+@@ -235,7 +288,12 @@ class CBattlePlayer {
+          return -1;
+       } else {
+          this.m_App.m_bMouseMove = false;
+-         if (Vari.m_bSkillWin && this.m_App.m_nMouseX >= 24 && this.m_App.m_nMouseY >= 216 && this.m_App.m_nMouseX < 185 && this.m_App.m_nMouseY < 320) {
++         if (Vari.m_bSkillWin
++            && this.m_App.m_nMouseX >= Vari.Scale(24)
++            && this.m_App.m_nMouseY >= Vari.Scale(216)
++            && this.m_App.m_nMouseX < Vari.Scale(185)
++            && this.m_App.m_nMouseY < this.m_App.m_nHeight
++         ) {
+             return -1;
+          } else {
+             new D3DXVECTOR3();
+@@ -504,7 +562,7 @@ class CBattlePlayer {
+ 
+    public CAction SKillMain(CBattleWork var1, int var2, int var3) {
+       CAbility var4 = var1.m_Prm.m_Abi;
+-      Vari.m_Help.Create(this.m_App, 16);
++      Vari.m_Help.Create(this.m_App, Vari.Scale(16));
+       this.m_App.EntryWindow(Vari.m_Help);
+       Vari.m_Help.OpenWindow();
+       CBSkillWindowLR var5 = new CBSkillWindowLR();
+@@ -570,6 +628,6 @@ class CBattlePlayer {
+ 
+       this.m_CmdMenu.SetFlag(1);
+       this.m_CmdMenu.SetFlag(8);
+-      this.m_CmdMenu.OpenWindow(16, 200);
++      this.m_CmdMenu.OpenWindow(Vari.Scale(16), Vari.Scale(200));
+    }
+ }
+diff --git a/src/CBattleResult.java b/src/CBattleResult.java
+index 730ea7f..a4d3c9d 100644
+--- a/src/CBattleResult.java
++++ b/src/CBattleResult.java
+@@ -98,7 +98,7 @@ class CBattleResult {
+       CSlipWindow var3 = new CSlipWindow();
+       this.m_App.EntryWindow(var3);
+       var3.Create(this.m_App, var2);
+-      var3.OpenWindow(200, 136 + 56 * var1);
++      var3.OpenWindow(this.m_App.m_nCenterX, Vari.Scale(136 + 56 * var1));
+       this.m_App.LoopFrame(4);
+       this.m_App.WaitKey_Display();
+       var3.CloseWindow();
+@@ -119,7 +119,13 @@ class CBattleResult {
+          CBattleWork var1 = Vari.GetBChrWork(var2);
+          this.m_anExp[var3] = var1.GetAcqExp(this.m_Info.m_nExp);
+          this.m_anAP[var3] = var1.GetAcqAP(this.m_Info.m_nAP);
+-         this.m_aPerWindow[var3].Create(this.m_App, Vari.GetBChrWork(var2), 112 + 56 * var3, this.m_anExp[var3], this.m_anAP[var3]);
++         this.m_aPerWindow[var3].Create(
++            this.m_App,
++            Vari.GetBChrWork(var2),
++            Vari.Scale(112 + 56 * var3),
++            this.m_anExp[var3],
++            this.m_anAP[var3]
++         );
+          this.m_aPerWindow[var3].OpenWindow();
+          this.m_App.EntryWindow(this.m_aPerWindow[var3]);
+       }
+diff --git a/src/CBtlPlayerStatus.java b/src/CBtlPlayerStatus.java
+index acf9e9b..1c6396f 100644
+--- a/src/CBtlPlayerStatus.java
++++ b/src/CBtlPlayerStatus.java
+@@ -11,7 +11,7 @@ class CBtlPlayerStatus {
+    public void Create(ARpg var1, CBattleWork var2, int var3) {
+       this.m_App = var1;
+       this.m_BChr = var2;
+-      this.m_nYPos = 320 - 18 * (3 - var3) - 2;
++      this.m_nYPos = var1.m_nHeight - Vari.Scale(18) * (3 - var3) - 2;
+    }
+ 
+    public void Run() {
+@@ -68,12 +68,12 @@ class CBtlPlayerStatus {
+    }
+ 
+    public void DrawFont(int var1, String var2) {
+-      int var3 = 136 + var1 * 16 + 8;
+-      this.m_App.DrawFontC(var3 - 1, this.m_nYPos, var2, 16, Color.black);
+-      this.m_App.DrawFontC(var3 + 1, this.m_nYPos, var2, 16, Color.black);
+-      this.m_App.DrawFontC(var3, this.m_nYPos - 1, var2, 16, Color.black);
+-      this.m_App.DrawFontC(var3, this.m_nYPos + 1, var2, 16, Color.black);
+-      this.m_App.DrawFontC(var3, this.m_nYPos, var2, 16, this.m_Col);
++      int var3 = Vari.Scale(136 + var1 * 16 + 8);
++      this.m_App.DrawFontC(var3 - 1, this.m_nYPos, var2, Vari.Scale(16), Color.black);
++      this.m_App.DrawFontC(var3 + 1, this.m_nYPos, var2, Vari.Scale(16), Color.black);
++      this.m_App.DrawFontC(var3, this.m_nYPos - 1, var2, Vari.Scale(16), Color.black);
++      this.m_App.DrawFontC(var3, this.m_nYPos + 1, var2, Vari.Scale(16), Color.black);
++      this.m_App.DrawFontC(var3, this.m_nYPos, var2, Vari.Scale(16), this.m_Col);
+    }
+ 
+    public void Release() {
+@@ -95,7 +95,12 @@ class CBtlPlayerStatus {
+ 
+       do {
+          this.m_App.SetColor(new Color(var1 * 12, var1 * 24, var1 * 48));
+-         this.m_App.m_OffsGraph.drawLine(136, this.m_nYPos + 16 - var1, 376, this.m_nYPos + 16 - var1);
++         this.m_App.m_OffsGraph.drawLine(
++            Vari.Scale(136),
++            this.m_nYPos + Vari.Scale(16) - var1,
++            Vari.Scale(376),
++            this.m_nYPos + Vari.Scale(16) - var1
++         );
+          ++var1;
+       } while(var1 < 6);
+ 
+diff --git a/src/CCalcBndBox.java b/src/CCalcBndBox.java
+index 6239e92..0845107 100644
+--- a/src/CCalcBndBox.java
++++ b/src/CCalcBndBox.java
+@@ -39,7 +39,7 @@ class CCalcBndBox {
+ 
+    private boolean CheckDisplayIn(int var1) {
+       int var2;
+-      for(var2 = 0; var2 < var1 && this.m_avCalc[var2].z <= 400.0F; ++var2) {
++      for(var2 = 0; var2 < var1 && this.m_avCalc[var2].z <= Vari.m_App.m_nWidth; ++var2) {
+       }
+ 
+       if (var2 == var1) {
+@@ -53,7 +53,7 @@ class CCalcBndBox {
+                --var3;
+             }
+ 
+-            if (this.m_avCalc[var2].x >= 400.0F) {
++            if (this.m_avCalc[var2].x >= Vari.m_App.m_nWidth) {
+                ++var3;
+             }
+ 
+@@ -61,7 +61,7 @@ class CCalcBndBox {
+                --var4;
+             }
+ 
+-            if (this.m_avCalc[var2].y >= 370.0F) {
++            if (this.m_avCalc[var2].y >= Vari.m_App.m_nHeight + 50) {
+                ++var4;
+             }
+ 
+diff --git a/src/CChrSelectHP.java b/src/CChrSelectHP.java
+index ce2a75f..bb16324 100644
+--- a/src/CChrSelectHP.java
++++ b/src/CChrSelectHP.java
+@@ -24,7 +24,7 @@ class CChrSelectHP extends CWindow {
+    }
+ 
+    public void DrawMessage() {
+-      int var3 = 8;
++      int var3 = Vari.Scale(8);
+       new String();
+ 
+       for(int var5 = 0; var5 < this.m_nChrMax; ++var5) {
+@@ -36,26 +36,26 @@ class CChrSelectHP extends CWindow {
+          }
+ 
+          CChrParam var1 = Vari.GetChrPrm(Vari.GetPartyWork(var5));
+-         this.DrawFont(8, var3, var1.GetName(), var2, 16);
++         this.DrawFont(Vari.Scale(8), var3, var1.GetName(), var2, Vari.Scale(16));
+          if (this.m_nObject == 1 || var5 == this.m_nSelect) {
+-            int var6 = 8 + this.GetXPos();
+-            int var7 = this.GetYPos() + var3 + 16;
+-            this.m_App.m_OffsGraph.drawLine(var6, var7, var6 + 64, var7);
++            int var6 = Vari.Scale(8) + this.GetXPos();
++            int var7 = this.GetYPos() + var3 + Vari.Scale(16);
++            this.m_App.m_OffsGraph.drawLine(var6, var7, var6 + Vari.Scale(64), var7);
+          }
+ 
+-         var3 += 16;
++         var3 += Vari.Scale(16);
+          String var4 = "ＨＰ　";
+          var4 = var4 + Calc3D.NumberString(var1.m_nHP, 4);
+          var4 = var4 + "／";
+          var4 = var4 + Calc3D.NumberString(var1.GetMaxHP(), 4);
+-         this.DrawFont(8, var3, var4, var2, 16);
+-         var3 += 16;
++         this.DrawFont(Vari.Scale(8), var3, var4, var2, Vari.Scale(16));
++         var3 += Vari.Scale(16);
+          var4 = "ＭＰ　";
+          var4 = var4 + Calc3D.NumberString(var1.m_nMP, 4);
+          var4 = var4 + "／";
+          var4 = var4 + Calc3D.NumberString(var1.GetMaxMP(), 4);
+-         this.DrawFont(8, var3, var4, var2, 16);
+-         var3 += 24;
++         this.DrawFont(Vari.Scale(8), var3, var4, var2, Vari.Scale(16));
++         var3 += Vari.Scale(24);
+       }
+ 
+    }
+@@ -79,12 +79,12 @@ class CChrSelectHP extends CWindow {
+    }
+ 
+    public void OpenWindow() {
+-      int var1 = this.m_nChrMax * 56 + 16;
+-      this.m_nXPos = 96;
+-      this.m_nYPos = 320 - var1 >> 1;
+-      int var2 = this.m_nXPos + 104;
++      int var1 = Vari.Scale(this.m_nChrMax * 56 + 16);
++      this.m_nXPos = Vari.Scale(96);
++      this.m_nYPos = this.m_App.m_nHeight - var1 >> 1;
++      int var2 = this.m_nXPos + Vari.Scale(104);
+       int var3 = this.m_nYPos + var1 / 2;
+-      this._Create((CWinEntry)this.m_App, Vari.m_WinColor, 208, var1, 4);
++      this._Create((CWinEntry)this.m_App, Vari.m_WinColor, Vari.Scale(208), var1, 4);
+       this._Open(var2, var3, this.m_nXPos, this.m_nYPos);
+    }
+ 
+@@ -127,7 +127,7 @@ class CChrSelectHP extends CWindow {
+ 
+                if (this.m_App.m_bMouseMove) {
+                   if (this.IsMouseIn()) {
+-                     int var1 = (this.m_App.m_nMouseY - super.m_nPosY - 8) / 56;
++                     int var1 = (this.m_App.m_nMouseY - super.m_nPosY - Vari.Scale(8)) / Vari.Scale(56);
+                      if (var1 < this.m_nChrMax) {
+                         this.m_nSelect = var1;
+                      }
+diff --git a/src/CCompWindow.java b/src/CCompWindow.java
+index 43a158d..317e840 100644
+--- a/src/CCompWindow.java
++++ b/src/CCompWindow.java
+@@ -11,13 +11,13 @@ class CCompWindow extends CWindow {
+    public void Create(ARpg var1, int var2) {
+       this.m_App = var1;
+       this.m_nListNo = var2;
+-      this._Create((CWinEntry)var1, Vari.m_WinColor, 176, this.GetHeight_Text(6), 4);
++      this._Create((CWinEntry)var1, Vari.m_WinColor, Vari.Scale(176), this.GetHeight_Text(6), 4);
+    }
+ 
+    public void DrawMessage() {
+       CItemData var1 = Vari.GetItemData(CCompTable.GetItem(this.m_nListNo));
+-      this.DrawFont(8, 8, var1.m_strName, Def.GetColor(0), 16);
+-      this.DrawFont(24, this.GetYPos(1), "↓必要なアイテム", Def.GetColor(0), 16);
++      this.DrawFont(Vari.Scale(8), Vari.Scale(8), var1.m_strName, Def.GetColor(0), Vari.Scale(16));
++      this.DrawFont(Vari.Scale(24), this.GetYPos(1), "↓必要なアイテム", Def.GetColor(0), Vari.Scale(16));
+       int var4 = 0;
+ 
+       String var3;
+@@ -39,13 +39,13 @@ class CCompWindow extends CWindow {
+             var5 = Def.GetColor(8);
+          }
+ 
+-         this.DrawFont(24, this.GetYPos(var4 + 2), var3, var5, 16);
++         this.DrawFont(Vari.Scale(24), this.GetYPos(var4 + 2), var3, var5, Vari.Scale(16));
+          ++var4;
+       } while(var4 < 3);
+ 
+       var3 = Calc3D.NumberString(CCompTable.GetGold(this.m_nListNo), 5);
+       var3 = var3 + "Ｇ";
+-      this.DrawFont(72, this.GetYPos(5), var3, Def.GetColor(0), 16);
++      this.DrawFont(Vari.Scale(72), this.GetYPos(5), var3, Def.GetColor(0), Vari.Scale(16));
+    }
+ 
+    public void CloseWindow() {
+@@ -62,6 +62,6 @@ class CCompWindow extends CWindow {
+    }
+ 
+    public void OpenWindow() {
+-      this._Open(200, 48 + this.GetHeight_Text(6) / 2, 112, 48);
++      this._Open(this.m_App.m_nCenterX, Vari.Scale(48) + this.GetHeight_Text(6) / 2, Vari.Scale(112), Vari.Scale(48));
+    }
+ }
+diff --git a/src/CComposition.java b/src/CComposition.java
+index 608b7e6..4b87df8 100644
+--- a/src/CComposition.java
++++ b/src/CComposition.java
+@@ -44,7 +44,7 @@ class CComposition extends CBaseShop {
+       this.m_ListMenu.MakeList();
+       super.m_App.EntryWindow(this.m_ListMenu);
+       super.m_App.OpenMoneyWindow();
+-      this.m_Help.Create(super.m_App, 188);
++      this.m_Help.Create(super.m_App, Vari.Scale(188));
+       super.m_App.EntryWindow(this.m_Help);
+       this.m_PrmW.Create(super.m_App);
+       super.m_App.EntryWindow(this.m_PrmW);
+@@ -80,7 +80,7 @@ class CComposition extends CBaseShop {
+    }
+ 
+    public void BuyMain() {
+-      this.m_ListMenu.OpenWindow(8, 8);
++      this.m_ListMenu.OpenWindow(Vari.Scale(8), Vari.Scale(8));
+       this.m_Help.OpenWindow();
+       this.m_PrmW.OpenWindow();
+       super.m_App.LoopFrame(4);
+diff --git a/src/CDebug.java b/src/CDebug.java
+index 5479bf9..3a14baf 100644
+--- a/src/CDebug.java
++++ b/src/CDebug.java
+@@ -27,8 +27,14 @@ class CDebug {
+          this.m_nFPScount -= 20;
+       }
+ 
+-      this.m_App.DrawFont(32, 32, "FPS " + this.m_fFPS, 16, Color.white);
+-      this.m_App.DrawFont(32, 300, "Window " + this.m_App.GetWindowNum(), 16, Color.white);
++      this.m_App.DrawFont(Vari.Scale(32), Vari.Scale(32), "FPS " + this.m_fFPS, Vari.Scale(16), Color.white);
++      this.m_App.DrawFont(
++         Vari.Scale(32),
++         Vari.Scale(300),
++         "Window " + this.m_App.GetWindowNum(),
++         Vari.Scale(16),
++         Color.white
++      );
+    }
+ 
+    public void DrawGrid() {
+@@ -36,11 +42,11 @@ class CDebug {
+       D3DXVECTOR3 var2 = this.m_Render.Get3DPosBW(this.m_vGrX);
+       D3DXVECTOR3 var3 = this.m_Render.Get3DPosBW(this.m_vGrY);
+       D3DXVECTOR3 var4 = this.m_Render.Get3DPosBW(this.m_vGrZ);
+-      this.m_App.DrawFontC((int)var2.x, (int)var2.y, "X", 16, Color.blue);
++      this.m_App.DrawFontC((int)var2.x, (int)var2.y, "X", Vari.Scale(16), Color.blue);
+       this.m_Render.DrawLine(var1, var2);
+-      this.m_App.DrawFontC((int)var3.x, (int)var3.y, "Y", 16, Color.red);
++      this.m_App.DrawFontC((int)var3.x, (int)var3.y, "Y", Vari.Scale(16), Color.red);
+       this.m_Render.DrawLine(var1, var3);
+-      this.m_App.DrawFontC((int)var4.x, (int)var4.y, "Z", 16, Color.green);
++      this.m_App.DrawFontC((int)var4.x, (int)var4.y, "Z", Vari.Scale(16), Color.green);
+       this.m_Render.DrawLine(var1, var4);
+    }
+ 
+@@ -51,7 +57,7 @@ class CDebug {
+       var3.z = var1.z + var2.z * 100.0F;
+       this.m_Render.SetColor(Color.white);
+       this.m_Render.DrawLine(var1, var3);
+-      this.m_App.DrawFontC((int)var3.x, (int)var3.y, "N", 16, Color.white);
++      this.m_App.DrawFontC((int)var3.x, (int)var3.y, "N", Vari.Scale(16), Color.white);
+    }
+ 
+    CDebug() {
+@@ -65,9 +71,9 @@ class CDebug {
+ 
+    public void DrawInfo() {
+       String var1 = "X: " + CMapData.GetXBlock(this.m_App.m_Player.m_vPos.x);
+-      this.m_App.DrawFont(20, 20, var1, 16, Color.white);
++      this.m_App.DrawFont(Vari.Scale(20), Vari.Scale(20), var1, Vari.Scale(16), Color.white);
+       var1 = "Z: " + CMapData.GetZBlock(this.m_App.m_Player.m_vPos.z);
+-      this.m_App.DrawFont(20, 40, var1, 16, Color.white);
++      this.m_App.DrawFont(Vari.Scale(20), Vari.Scale(40), var1, Vari.Scale(16), Color.white);
+    }
+ 
+    public void DebugCameraControl() {
+diff --git a/src/CDispName.java b/src/CDispName.java
+index 7b846a5..c542fe8 100644
+--- a/src/CDispName.java
++++ b/src/CDispName.java
+@@ -16,8 +16,8 @@ class CDispName extends CWindow {
+       this.m_App = var1;
+       this.m_nWidth = this.GetWidth_Text(7);
+       this.m_nHeight = this.GetHeight_Text(1);
+-      this.m_nXPos = 400 - this.m_nWidth - 24;
+-      this.m_nYPos = 320 - this.m_nHeight - 24;
++      this.m_nXPos = this.m_App.m_nWidth - this.m_nWidth - Vari.Scale(24);
++      this.m_nYPos = this.m_App.m_nHeight - this.m_nHeight - Vari.Scale(24);
+       this.m_astrName = new String[4];
+       this.m_anName = new int[4];
+       int var2 = 0;
+@@ -46,15 +46,20 @@ class CDispName extends CWindow {
+    }
+ 
+    public void DrawMessage() {
+-      this.DrawFont(this.GetXPos(0), 8, "名前：", Def.GetColor(0), 16);
++      this.DrawFont(this.GetXPos(0), Vari.Scale(8), "名前：", Def.GetColor(0), Vari.Scale(16));
+       int var1 = 0;
+ 
+       do {
+-         this.DrawFont(this.GetXPos(3 + var1), 8, this.m_astrName[var1], Def.GetColor(0), 16);
++         this.DrawFont(this.GetXPos(3 + var1), Vari.Scale(8), this.m_astrName[var1], Def.GetColor(0), Vari.Scale(16));
+          ++var1;
+       } while(var1 < 4);
+ 
+-      this.DrawLine(this.GetXPos(3 + this.m_nCursor), 24, this.GetXPos(3 + this.m_nCursor) + 16, 24);
++      this.DrawLine(
++         this.GetXPos(3 + this.m_nCursor),
++         Vari.Scale(24),
++         this.GetXPos(3 + this.m_nCursor) + Vari.Scale(16),
++         Vari.Scale(24)
++      );
+    }
+ 
+    public void CloseWindow() {
+diff --git a/src/CDrawMap.java b/src/CDrawMap.java
+index 42e4253..7fb1a4d 100644
+--- a/src/CDrawMap.java
++++ b/src/CDrawMap.java
+@@ -1,3 +1,5 @@
++import java.util.Arrays;
++
+ class CDrawMap extends CRender3D {
+    private CGroundArea m_GArea = new CGroundArea();
+ 
+@@ -70,6 +72,31 @@ class CDrawMap extends CRender3D {
+                var5.y = (float)(var10 & 3) * 1.5707964F;
+                var9.x = CMapData.GetXPos(var14);
+                var9.z = CMapData.GetZPos(var13);
++
++               // In ExtractMaps mode, draw some objects facing up.
++               if (var2.m_bExtractMaps) {
++                  // Treasure chest (27), castle (29), town (30), chest of drawers (33), thief's door (35), bookshelf
++                  // (36), cave (38), iron door (39), tower (42), toilet (50), mirror (51), safe (52)
++                  if (Arrays.asList(27, 29, 30, 33, 35, 36, 38, 39, 42, 50, 51, 52).contains(var11)) {
++                     // Make the object face up.
++                     var5.x = (float)(-Math.PI / 2.0D);
++                     // The front of the object is either the top (0), right (1), bottom (2), or left (3)
++                     int direction = var10 & 3;
++                     // The treasure chest (27) is only moved by half a square.
++                     float factor = (var11 == 27 ? 0.5F : 1.0F);
++                     // If the front of the object is top (0) or bottom (2)
++                     if (direction == 0 || direction == 2) {
++                        // Move vertically by one square.
++                        var9.z += (direction == 0 ? 1 : -1) * CMapData.GetZPos(0) * factor;
++                     } else {
++                        // Move horizontally by one square.
++                        var9.x += (direction == 1 ? 1 : -1) * CMapData.GetXPos(0) * factor;
++                     }
++                  } else {
++                     var5.x = 0.0F;
++                  }
++               }
++
+                this.CalcModel(var2.m_aModel[var11], var8, var9, var5, var6, 0);
+                if (var8.CheckDisplayIn()) {
+                   var7.m_mWorld = this.GetTransform(3);
+diff --git a/src/CDrawSort.java b/src/CDrawSort.java
+index 06dec82..38e9b93 100644
+--- a/src/CDrawSort.java
++++ b/src/CDrawSort.java
+@@ -1,5 +1,5 @@
+ class CDrawSort {
+-   static final int MAX_TABLE = 512;
++   static final int MAX_TABLE = 2048;
+    static final int ID_NONE = -1;
+    static final int ID_MAP = 1;
+    static final int ID_OBJECT = 2;
+@@ -11,12 +11,12 @@ class CDrawSort {
+    static final float ADD_SHADOW = 10000.0F;
+    static final float ADD_EFFECT = -10000.0F;
+    static final float ADD_UPOBJ = 30.0F;
+-   private CSortWork[] m_acWork = new CSortWork[512];
++   private CSortWork[] m_acWork = new CSortWork[MAX_TABLE];
+    private int m_nPtr;
+-   private int[] m_anTable = new int[512];
++   private int[] m_anTable = new int[MAX_TABLE];
+ 
+    public void RecObject(int var1, int var2, CCalcBndBox var3, CModelTrans var4, int var5, int var6) {
+-      if (this.m_nPtr < 512) {
++      if (this.m_nPtr < MAX_TABLE) {
+          float var7 = var3.m_fZPos * 10.0F + Calc3D.Abs(var3.m_fXPos) * 2.0F;
+          this.m_acWork[this.m_nPtr].m_nID = var1;
+          this.m_acWork[this.m_nPtr].m_nModelNo = var2;
+@@ -90,7 +90,7 @@ class CDrawSort {
+       do {
+          this.m_acWork[var1].m_nID = -1;
+          this.m_anTable[var1] = var1++;
+-      } while(var1 < 512);
++      } while(var1 < MAX_TABLE);
+ 
+       this.m_nPtr = 0;
+    }
+@@ -105,7 +105,7 @@ class CDrawSort {
+       do {
+          this.m_acWork[var1] = new CSortWork();
+          ++var1;
+-      } while(var1 < 512);
++      } while(var1 < MAX_TABLE);
+ 
+       this.Clear();
+    }
+diff --git a/src/CEquip.java b/src/CEquip.java
+index 1d647de..a197dc7 100644
+--- a/src/CEquip.java
++++ b/src/CEquip.java
+@@ -98,7 +98,7 @@ class CEquip {
+ 
+          this.m_List.SetFlag(2);
+          this.m_Item.CreateList(this.m_App, this, this.m_nChrNo, var1 - 1);
+-         this.m_Item.Run(200, 56);
++         this.m_Item.Run(this.m_App.m_nCenterX, Vari.Scale(56));
+          this.m_List.ResetFlag(2);
+       }
+    }
+@@ -108,7 +108,7 @@ class CEquip {
+       Vari.m_Help.Create(this.m_App, 8);
+       this.m_App.EntryWindow(this.m_List);
+       this.m_App.EntryWindow(Vari.m_Help);
+-      this.m_List.OpenWindow(48, 40);
++      this.m_List.OpenWindow(Vari.Scale(48), Vari.Scale(40));
+       Vari.m_Help.OpenWindow();
+    }
+ }
+diff --git a/src/CEquipGem.java b/src/CEquipGem.java
+index b1f9d44..a013fbd 100644
+--- a/src/CEquipGem.java
++++ b/src/CEquipGem.java
+@@ -21,13 +21,13 @@ class CEquipGem {
+          this.SetHelp(1);
+       }
+ 
+-      this.m_Window.Create(this.m_App, 32, 8, 0);
++      this.m_Window.Create(this.m_App, Vari.Scale(32), Vari.Scale(8), 0);
+       this.m_Window.SetItem(this.m_Prm.m_nGem);
+       this.m_Window.SetPrm(this.m_nChrNo, this.m_Prm);
+       this.m_App.EntryWindow(this.m_Window);
+       this.m_App.EntryWindow(this.m_Help);
+       this.m_Window.OpenWindow();
+-      this.m_Help.OpenWindow(200, 288);
++      this.m_Help.OpenWindow(this.m_App.m_nCenterX, Vari.Scale(288));
+       this.m_App.LoopFrame(4);
+    }
+ 
+@@ -127,7 +127,7 @@ class CEquipGem {
+          } else {
+             this.SetHelp(2);
+             CGemWindow var2 = new CGemWindow();
+-            var2.Create(this.m_App, 128, 48, 1);
++            var2.Create(this.m_App, Vari.Scale(128), Vari.Scale(48), 1);
+             var2.SetPrm(this.m_nChrNo, this.m_Prm);
+             if (var1 > 1) {
+                var2.SetFlag(16);
+diff --git a/src/CEquipList.java b/src/CEquipList.java
+index 236d9d4..b83b026 100644
+--- a/src/CEquipList.java
++++ b/src/CEquipList.java
+@@ -72,7 +72,7 @@ class CEquipList extends CBaseItemList {
+       int var6 = var5.m_anEquip[this.m_nKind];
+       this.m_Prm = new CPrmChangeWindow();
+       this.m_Prm.Create(super.m_App, this, var6);
+-      this.m_Prm.OpenWindow(32, 184);
++      this.m_Prm.OpenWindow(Vari.Scale(32), Vari.Scale(184));
+       super.m_App.EntryWindow(this.m_Prm);
+    }
+ 
+diff --git a/src/CEquipPrmWin.java b/src/CEquipPrmWin.java
+index c098d71..9cbaf10 100644
+--- a/src/CEquipPrmWin.java
++++ b/src/CEquipPrmWin.java
+@@ -106,29 +106,41 @@ class CEquipPrmWin extends CWindow {
+ 
+    public void SetWindowSize() {
+       int var1 = Vari.GetPartyNum();
+-      this.m_nWidth = var1 * 32 + (var1 - 1) * 8 + 16;
++      this.m_nWidth = Vari.Scale(var1 * 32 + (var1 - 1) * 8 + 16);
+       if (this.m_bCount) {
+-         this.m_nWidth += 16;
++         this.m_nWidth += Vari.Scale(16);
+       }
+ 
+-      this.m_nXPos = 400 - this.m_nWidth - 8;
+-      this._Create((CWinEntry)this.m_App, Vari.m_WinColor, this.m_nWidth, 32, 4);
++      this.m_nXPos = this.m_App.m_nWidth - this.m_nWidth - Vari.Scale(8);
++      this._Create((CWinEntry)this.m_App, Vari.m_WinColor, this.m_nWidth, Vari.Scale(32), 4);
+    }
+ 
+    public void DrawMessage() {
+       byte var1 = 0;
+       if (this.m_bCount) {
+-         var1 = 16;
++         var1 = (byte)Vari.Scale(16);
+          if (this.m_Item != null) {
+-            this.DrawFont(8, 8, Def.GetZenSujiCode(this.m_App.m_Play.GetItem2(this.m_Item.m_nWorkNo)), Color.white, 16);
++            this.DrawFont(
++               Vari.Scale(8),
++               Vari.Scale(8),
++               Def.GetZenSujiCode(this.m_App.m_Play.GetItem2(this.m_Item.m_nWorkNo)),
++               Color.white,
++               Vari.Scale(16)
++            );
+          }
+       }
+ 
+       for(int var4 = 0; var4 < Vari.GetPartyNum(); ++var4) {
+          int var2 = Vari.GetPartyWork(var4);
+-         int var3 = var4 * 40 + 8 + var1;
+-         this.m_App.DrawImage(28 + var2, var3 + this.m_nXPos, 160);
+-         this.DrawFont(var3 + 16, 8, DISP_PARAM[this.CheckPrm(var2)], Color.white, 16);
++         int var3 = Vari.Scale(var4 * 40 + 8) + var1;
++         this.m_App.DrawImage(28 + var2, var3 + this.m_nXPos, Vari.Scale(160));
++         this.DrawFont(
++            var3 + Vari.Scale(16),
++            Vari.Scale(8),
++            DISP_PARAM[this.CheckPrm(var2)],
++            Color.white,
++            Vari.Scale(16)
++         );
+       }
+ 
+    }
+@@ -148,7 +160,7 @@ class CEquipPrmWin extends CWindow {
+    }
+ 
+    public void OpenWindow() {
+-      this._Open(this.m_nXPos + this.m_nWidth / 2, 168, this.m_nXPos, 152);
++      this._Open(this.m_nXPos + this.m_nWidth / 2, Vari.Scale(168), this.m_nXPos, Vari.Scale(152));
+    }
+ 
+    public void CountOn() {
+diff --git a/src/CEventManage.java b/src/CEventManage.java
+index 6b54098..0151f63 100644
+--- a/src/CEventManage.java
++++ b/src/CEventManage.java
+@@ -81,7 +81,7 @@ class CEventManage {
+    static final int MAX_STACK = 64;
+    private int m_nMaxEventNum;
+    private byte m_byEventChr;
+-   private CEventData[] m_acEvtData;
++   public CEventData[] m_acEvtData;
+    private int m_nEventNo;
+    private int m_nPtr;
+    private CEventData m_cExeEvt;
+@@ -102,13 +102,16 @@ class CEventManage {
+ 
+    private void EvtCmd_Frame() {
+       int var1 = this.GetOperandWord();
+-      if (var1 != 32767) {
+-         this.m_App.LoopFrame(var1);
+-      } else {
+-         while(Vari.m_Char.IsMoveEvent()) {
+-            this.m_App.LoopFrame(1);
+-         }
++      // In ExtractMaps mode, don't play the character's movement event.
++      if (!this.m_App.m_bExtractMaps) {
++         if (var1 != 32767) {
++            this.m_App.LoopFrame(var1);
++         } else {
++            while(Vari.m_Char.IsMoveEvent()) {
++               this.m_App.LoopFrame(1);
++            }
+ 
++         }
+       }
+    }
+ 
+@@ -237,13 +240,14 @@ class CEventManage {
+             break;
+          case 8:
+             var4 = this.GetOperand();
+-            if (!Vari.m_bDebMessOff) {
++            // In ExtractMaps mode, don't show the message window.
++            if (!Vari.m_bDebMessOff && !this.m_App.m_bExtractMaps) {
+                this.m_App.m_MessWin.OpenWindow(var4);
+                this.m_App.LoopFrame(4);
+             }
+             break;
+          case 9:
+-            if (!Vari.m_bDebMessOff) {
++            if (!Vari.m_bDebMessOff && !this.m_App.m_bExtractMaps) {
+                this.m_App.m_MessWin.CloseWindow();
+                this.m_App.LoopFrame(4);
+             }
+@@ -293,7 +297,10 @@ class CEventManage {
+             break;
+          case 23:
+             var6 = this.GetOperand();
+-            this.m_App.m_Fade.FadeIn(var6);
++            // In ExtractMaps mode, don't fade in.
++            if (!this.m_App.m_bExtractMaps) {
++               this.m_App.m_Fade.FadeIn(var6);
++            }
+             break;
+          case 24:
+             var6 = this.GetOperand();
+@@ -511,7 +518,7 @@ class CEventManage {
+       }
+ 
+       this.m_App.EntryWindow(var6);
+-      var6.OpenWindow(16, 16);
++      var6.OpenWindow(Vari.Scale(16), Vari.Scale(16));
+       this.m_App.LoopFrame(4);
+       var5 = var6.LoopFrame();
+       this.m_App.LoopFrame(4);
+@@ -810,7 +817,7 @@ class CEventManage {
+       var1.SetMenuText(0, "はい");
+       var1.SetMenuText(1, "いいえ");
+       this.m_App.EntryWindow(var1);
+-      var1.OpenWindow(16, 16);
++      var1.OpenWindow(Vari.Scale(16), Vari.Scale(16));
+       this.m_App.LoopFrame(4);
+       int var2 = var1.LoopFrame();
+       this.m_App.LoopFrame(4);
+diff --git a/src/CFadeIn.java b/src/CFadeIn.java
+index 058e2c2..7371830 100644
+--- a/src/CFadeIn.java
++++ b/src/CFadeIn.java
+@@ -116,7 +116,7 @@ class CFadeIn {
+       for(int var3 = 0; var3 < var1; ++var3) {
+          int var2 = 255 * (var1 - var3 - 1) / var1;
+          this.m_App.SetColor(new Color(var2, var2, var2));
+-         this.m_App.FillRect(0, 0, 400, 320);
++         this.m_App.FillRect(0, 0, this.m_App.m_nWidth, this.m_App.m_nHeight);
+          this.m_App.DoFrame();
+          this.m_App.WaitRepaint(this.m_App.GetWaitFrame());
+       }
+diff --git a/src/CGameApp.java b/src/CGameApp.java
+index aba09cd..a9fc2a4 100644
+--- a/src/CGameApp.java
++++ b/src/CGameApp.java
+@@ -7,6 +7,8 @@ import java.awt.FontMetrics;
+ import java.awt.Graphics;
+ import java.awt.Image;
+ import java.awt.MediaTracker;
++import java.net.MalformedURLException;
++import java.net.URL;
+ 
+ class CGameApp extends Applet {
+    public Thread m_Thread;
+@@ -45,6 +47,17 @@ class CGameApp extends Applet {
+    public boolean[] m_abSeFlag = new boolean[30];
+    public AudioClip[] m_aSe = new AudioClip[30];
+ 
++   // The following fields were added by an unofficial patch.
++   public int m_nKeyD;
++   public URL m_DataFileBase;
++   public URL m_AudioFileBase;
++   public boolean m_bExtractMaps;
++   public boolean m_bEnableEnemyAbilities;
++
++   public void pause() {
++      while (true) {}
++   }
++
+    public void DrawRect(int var1, int var2, int var3, int var4) {
+       this.m_OffsGraph.drawRect(var1, var2, var3, var4);
+    }
+@@ -78,6 +91,34 @@ class CGameApp extends Applet {
+       this.m_OffsGraph = this.m_OffsImage.getGraphics();
+       this.m_BackImage = this.createImage(var1, var2);
+       this.m_BackGraph = this.m_BackImage.getGraphics();
++
++      // The DataFileBase parameter is the base URL of the data files. The default value is the base URL of the applet.
++      String dataFileBaseParameter = this.getParameter("DataFileBase");
++      if (dataFileBaseParameter == null) {
++         this.m_DataFileBase = this.getCodeBase();
++      } else {
++         try {
++            this.m_DataFileBase = new URL(dataFileBaseParameter);
++         } catch (MalformedURLException e) {
++            e.printStackTrace();
++            this.pause();
++         }
++      }
++
++      // The AudioFileBase parameter is the base URL of the audio files. The default value is the base URL of the data
++      // files. Because `appletviewer` does not support reading audio files in JAR files, this parameter is provided.
++      String audioFileBaseParameter = this.getParameter("AudioFileBase");
++      if (audioFileBaseParameter == null) {
++         this.m_AudioFileBase = this.m_DataFileBase;
++      } else {
++         try {
++            this.m_AudioFileBase = new URL(audioFileBaseParameter);
++         } catch (MalformedURLException e) {
++            e.printStackTrace();
++            this.pause();
++         }
++      }
++
+       String var3 = this.getParameter("Mode");
+       if (var3.compareTo("0") == 0) {
+          this.m_bLowSpec = false;
+@@ -87,6 +128,16 @@ class CGameApp extends Applet {
+          this.m_bLowSpec = true;
+       }
+ 
++      // Add the following extended modes. Since the name attribute value is case-insensitive, so is the value attribute
++      // value.
++      if (var3.equalsIgnoreCase("ExtractMaps")) {
++         this.m_bExtractMaps = true;
++         // ExtractMaps mode implies Top-Down View.
++         Vari.m_bTopDownView = true;
++      } else if (var3.equalsIgnoreCase("EnableEnemyAbilities")) {
++         this.m_bEnableEnemyAbilities = true;
++      }
++
+       var3 = this.getParameter("Safe");
+       if (var3.compareTo("0") == 0) {
+          this.m_bSafeMode = false;
+@@ -187,7 +238,7 @@ class CGameApp extends Applet {
+       }
+ 
+       var2 = var2 + ".au";
+-      this.m_aSe[var1] = this.getAudioClip(this.getCodeBase(), var2);
++      this.m_aSe[var1] = this.getAudioClip(this.m_AudioFileBase, var2);
+       return true;
+    }
+ 
+@@ -264,6 +315,10 @@ class CGameApp extends Applet {
+       case 112:
+       default:
+          break;
++      case 68:
++      case 100:
++         this.m_nKeyD = (this.m_nKeyD == 0 ? 1 : 2);
++         break;
+       case 77:
+       case 109:
+          if (this.m_nKeyM == 0) {
+@@ -310,6 +365,7 @@ class CGameApp extends Applet {
+       this.m_bKeyZ = false;
+       this.m_bKeyX = false;
+       this.m_nKeyC = 0;
++      this.m_nKeyD = 0;
+       this.m_nKeyM = 0;
+       this.m_bKeyA = false;
+       this.m_bKeyS = false;
+@@ -385,7 +441,7 @@ class CGameApp extends Applet {
+             var2 = var2 + "OFF";
+          }
+ 
+-         this.DrawFont(300, 302, var2, 16, Color.white);
++         this.DrawFont(Vari.Scale(300), Vari.Scale(302), var2, Vari.Scale(16), Color.white);
+       }
+ 
+       this.WaitDelay(var1 - 15);
+@@ -509,6 +565,10 @@ class CGameApp extends Applet {
+       case 112:
+       default:
+          break;
++      case 68:
++      case 100:
++         this.m_nKeyD = 0;
++         break;
+       case 77:
+       case 109:
+          this.m_nKeyM = 0;
+@@ -599,7 +659,7 @@ class CGameApp extends Applet {
+    }
+ 
+    public String GetModelFileName(int var1) {
+-      String var2 = this.getCodeBase().toString();
++      String var2 = this.m_DataFileBase.toString();
+       var2 = var2 + "data/mdl";
+       if (var1 < 10) {
+          var2 = var2 + "00" + var1 + "._k3";
+diff --git a/src/CGameMain.java b/src/CGameMain.java
+index 1d0725c..55a7451 100644
+--- a/src/CGameMain.java
++++ b/src/CGameMain.java
+@@ -26,6 +26,20 @@ class CGameMain {
+    static final float ROCK_COR = 45.0F;
+    static final float ROCK_MOV = 20.0F;
+ 
++   // Pre-determined y-coordinates for each map, such that the entire map fits on the screen, for Top-Down View.
++   private static final float[] TOP_DOWN_VIEW_Y_COORDINATES_PER_MAP = {
++      54600.0F, 22800.0F, 24400.0F, 26600.0F, 16800.0F, 29000.0F, 31800.0F, 22800.0F, 10100.0F, 35800.0F,
++      22600.0F, 30600.0F, 22100.0F, 30200.0F, 29400.0F, 22800.0F, 30200.0F, 30200.0F, 22800.0F, 38600.0F,
++      48200.0F, 23600.0F, 17600.0F, 36200.0F, 30200.0F, 22800.0F, 18000.0F, 24200.0F, 30600.0F, 22800.0F,
++      31000.0F, 38600.0F, 18400.0F, 30200.0F, 30200.0F, 19600.0F, 26600.0F, 17700.0F, 33000.0F, 33000.0F,
++      27000.0F, 31000.0F, 30600.0F, 30200.0F, 33400.0F, 20500.0F, 22800.0F, 31800.0F, 34600.0F, 29400.0F,
++      29400.0F, 29400.0F, 29400.0F, 29400.0F, 34600.0F, 29400.0F, 29400.0F, 48200.0F, 22800.0F, 29400.0F,
++      29400.0F, 30200.0F, 30200.0F, 27400.0F, 24400.0F, 36200.0F, 36200.0F, 36200.0F, 24200.0F, 34200.0F,
++      31400.0F, 19100.0F, 19600.0F, 12400.0F, 30200.0F, 22800.0F, 33000.0F, 30200.0F, 24400.0F, 29400.0F,
++      21200.0F, 33800.0F, 29000.0F, 38600.0F, 24400.0F, 15200.0F, 33000.0F, 7600.0F, 30200.0F, 42200.0F,
++      35000.0F, 35000.0F, 36200.0F, 35000.0F, 38600.0F, 35000.0F, 35000.0F, 35000.0F, 26200.0F, 37400.0F
++   };
++
+    public void MoveEvent() {
+       new D3DXVECTOR3();
+       int var4 = 0;
+@@ -144,12 +158,12 @@ class CGameMain {
+          float var1 = this.m_Flag.GetCameraVect();
+          int[] var2 = new int[3];
+          int[] var3 = new int[3];
+-         var2[0] = (int)(-Calc3D.Sin(var1) * 190.0F) + 200;
+-         var3[0] = (int)(Calc3D.Cos(var1) * 150.0F) + 160;
+-         var2[1] = (int)(-Calc3D.Sin(var1 - 0.08F) * 180.0F) + 200;
+-         var3[1] = (int)(Calc3D.Cos(var1 - 0.08F) * 140.0F) + 160;
+-         var2[2] = (int)(-Calc3D.Sin(var1 + 0.08F) * 180.0F) + 200;
+-         var3[2] = (int)(Calc3D.Cos(var1 + 0.08F) * 140.0F) + 160;
++         var2[0] = (int)(-Calc3D.Sin(var1) * Vari.Scale(190.0F)) + this.m_App.m_nCenterX;
++         var3[0] = (int)(Calc3D.Cos(var1) * Vari.Scale(150.0F)) + this.m_App.m_nCenterY;
++         var2[1] = (int)(-Calc3D.Sin(var1 - 0.08F) * Vari.Scale(180.0F)) + this.m_App.m_nCenterX;
++         var3[1] = (int)(Calc3D.Cos(var1 - 0.08F) * Vari.Scale(140.0F)) + this.m_App.m_nCenterY;
++         var2[2] = (int)(-Calc3D.Sin(var1 + 0.08F) * Vari.Scale(180.0F)) + this.m_App.m_nCenterX;
++         var3[2] = (int)(Calc3D.Cos(var1 + 0.08F) * Vari.Scale(140.0F)) + this.m_App.m_nCenterY;
+          Graphics var4 = this.m_App.m_OffsGraph;
+          var4.setColor(Def.GetColor(2));
+          var4.fillPolygon(var2, var3, 3);
+@@ -450,11 +464,27 @@ class CGameMain {
+       } else {
+          CChrWork var1 = Vari.GetChrWork(Vari.GetCameraChr());
+          float var2 = this.m_Flag.GetCameraVect();
+-         float var3 = -2000.0F;
+-         float var4 = 1800.0F;
+-         if (Vari.m_bDistView) {
++         float var3;
++         float var4;
++
++         // In Top-Down View, project the map from directly above and set the y-coordinate (depth) so that the entire
++         // map fits on the screen (pre-determined manually for each map).
++         if (Vari.m_bTopDownView) {
++            var3 = -1.0F;
++            var4 = TOP_DOWN_VIEW_Y_COORDINATES_PER_MAP[this.m_App.m_Play.m_nAreaNo];
++
++            // In ExtractMaps mode, move the camera to the center of the map.
++            if (this.m_App.m_bExtractMaps) {
++               var1.m_vPos.x = this.m_App.m_NowStagePrm.GetMapXNum() * 100;
++               var1.m_vPos.y = 0;
++               var1.m_vPos.z = this.m_App.m_NowStagePrm.GetMapZNum() * 100;
++            }
++         } else if (Vari.m_bDistView) {
+             var3 = -2600.0F;
+             var4 = 2340.0F;
++         } else {
++            var3 = -2000.0F;
++            var4 = 1800.0F;
+          }
+ 
+          D3DXVECTOR3 var5 = new D3DXVECTOR3();
+@@ -809,7 +839,12 @@ class CGameMain {
+    }
+ 
+    float GetMouseVector() {
+-      D3DXVECTOR3 var1 = new D3DXVECTOR3((float)(-this.m_App.m_nMouseX + 200), 0.0F, (float)(-this.m_App.m_nMouseY + 160));
++      D3DXVECTOR3 var1 =
++         new D3DXVECTOR3(
++            (float)(-this.m_App.m_nMouseX + this.m_App.m_nCenterX),
++            0.0F,
++            (float)(-this.m_App.m_nMouseY + this.m_App.m_nCenterY)
++         );
+       return var1.Magnitude() < 20.0F ? -99999.9F : Calc3D.CalcAngleXZ(var1);
+    }
+ 
+diff --git a/src/CGameOver.java b/src/CGameOver.java
+index 8afe1e4..75916b0 100644
+--- a/src/CGameOver.java
++++ b/src/CGameOver.java
+@@ -27,27 +27,27 @@ class CGameOver {
+       var0.SetColor(Color.white);
+       int var3;
+       if (var1 < 32) {
+-         var3 = 300 * var1 / 32;
+-         var0.m_OffsGraph.drawLine(50, 128, 50 + var3, 128);
++         var3 = Vari.Scale(300) * var1 / 32;
++         var0.m_OffsGraph.drawLine(Vari.Scale(50), Vari.Scale(128), Vari.Scale(50) + var3, Vari.Scale(128));
+       } else if (var1 < 96) {
+-         var0.m_OffsGraph.drawLine(50, 128, 350, 128);
++         var0.m_OffsGraph.drawLine(Vari.Scale(50), Vari.Scale(128), Vari.Scale(350), Vari.Scale(128));
+       } else {
+          var4 = (128 - var1) * 255 / 32;
+          var0.SetColor(new Color(var4, var4, var4));
+-         var0.m_OffsGraph.drawLine(50, 128, 350, 128);
++         var0.m_OffsGraph.drawLine(Vari.Scale(50), Vari.Scale(128), Vari.Scale(350), Vari.Scale(128));
+       }
+ 
+       if (var1 < 32) {
+-         var3 = 300 * var1 / 32;
+-         var0.m_OffsGraph.drawLine(350 - var3, 176, 350, 176);
++         var3 = Vari.Scale(300) * var1 / 32;
++         var0.m_OffsGraph.drawLine(Vari.Scale(350) - var3, Vari.Scale(176), Vari.Scale(350), Vari.Scale(176));
+       } else {
+-         var0.m_OffsGraph.drawLine(50, 176, 350, 176);
++         var0.m_OffsGraph.drawLine(Vari.Scale(50), Vari.Scale(176), Vari.Scale(350), Vari.Scale(176));
+       }
+    }
+ 
+    public static void DrawGameOver(ARpg var0, int var1) {
+       Color var2 = new Color(var1, var1, var1);
+-      var0.DrawFontC(200, 128, "ＧＡＭＥ　ＯＶＥＲ", 40, var2);
++      var0.DrawFontC(var0.m_nCenterX, Vari.Scale(128), "ＧＡＭＥ　ＯＶＥＲ", Vari.Scale(40), var2);
+    }
+ 
+    public static void Run(ARpg var0) {
+@@ -63,6 +63,6 @@ class CGameOver {
+ 
+    public static void ClearSurface(ARpg var0) {
+       var0.m_OffsGraph.setColor(Color.black);
+-      var0.FillRect(0, 0, 400, 320);
++      var0.FillRect(0, 0, Vari.m_App.m_nWidth, Vari.m_App.m_nHeight);
+    }
+ }
+diff --git a/src/CGemWindow.java b/src/CGemWindow.java
+index 9c4cbc8..ca28b25 100644
+--- a/src/CGemWindow.java
++++ b/src/CGemWindow.java
+@@ -82,12 +82,12 @@ class CGemWindow extends CWindow {
+       }
+ 
+       var1 = var1 + this.GetItemName();
+-      this.DrawFont(8, this.GetYPos(var2), var1, Def.GetColor(0), 16);
++      this.DrawFont(Vari.Scale(8), this.GetYPos(var2), var1, Def.GetColor(0), Vari.Scale(16));
+       int var5 = var2 + 1;
+       if (this.m_nMode == 0) {
+          var1 = "ＡＰ：";
+          var1 = var1 + Calc3D.NumberString(this.m_Prm.m_nAP, 3);
+-         this.DrawFont(8, this.GetYPos(var5), var1, Def.GetColor(0), 16);
++         this.DrawFont(Vari.Scale(8), this.GetYPos(var5), var1, Def.GetColor(0), Vari.Scale(16));
+          var5 += 2;
+       }
+ 
+@@ -99,7 +99,7 @@ class CGemWindow extends CWindow {
+             var3 = Def.GetColor(8);
+          }
+ 
+-         this.DrawFont(8, this.GetYPos(var5), this.GetAbility(var4), var3, 16);
++         this.DrawFont(Vari.Scale(8), this.GetYPos(var5), this.GetAbility(var4), var3, Vari.Scale(16));
+          ++var5;
+          ++var4;
+       } while(var4 < 7);
+diff --git a/src/CHelpWindow.java b/src/CHelpWindow.java
+index 03af6b6..0dea318 100644
+--- a/src/CHelpWindow.java
++++ b/src/CHelpWindow.java
+@@ -9,7 +9,7 @@ class CHelpWindow extends CWindow {
+    public void Create(ARpg var1, int var2) {
+       this.m_App = var1;
+       this.m_nYPos = var2;
+-      this._Create((CWinEntry)var1, Vari.m_WinColor, 272, 32, 4);
++      this._Create((CWinEntry)var1, Vari.m_WinColor, Vari.Scale(272), Vari.Scale(32), 4);
+    }
+ 
+    public void SetHelp(CHelpData var1) {
+@@ -18,7 +18,7 @@ class CHelpWindow extends CWindow {
+ 
+    public void DrawMessage() {
+       if (this.m_Help != null) {
+-         this.DrawFont(8, 8, this.m_Help.m_strText, Def.GetColor(0), 16);
++         this.DrawFont(Vari.Scale(8), Vari.Scale(8), this.m_Help.m_strText, Def.GetColor(0), Vari.Scale(16));
+       }
+ 
+    }
+@@ -42,6 +42,6 @@ class CHelpWindow extends CWindow {
+    }
+ 
+    public void OpenWindow() {
+-      this._Open(256, this.m_nYPos + 16, 120, this.m_nYPos);
++      this._Open(Vari.Scale(256), this.m_nYPos + Vari.Scale(16), Vari.Scale(120), this.m_nYPos);
+    }
+ }
+diff --git a/src/CInitApplet.java b/src/CInitApplet.java
+index dccaa5c..ae7be3d 100644
+--- a/src/CInitApplet.java
++++ b/src/CInitApplet.java
+@@ -17,7 +17,7 @@ class CInitApplet {
+    public void CreateDisplay() {
+       this.ClearSurface();
+       this.m_Grp.setColor(Color.white);
+-      this.m_Grp.setFont(new Font("Serif", 1, 16));
++      this.m_Grp.setFont(new Font("Serif", 1, Vari.Scale(16)));
+       this.m_Grp.drawRect(this.m_nBarX - 1, this.m_nBarY - 1, this.m_nBarW + 1, this.m_nBarH + 2);
+    }
+ 
+@@ -37,9 +37,14 @@ class CInitApplet {
+    public void ClearSurface() {
+       for(int var1 = 0; var1 < this.m_nHeight >> 2; ++var1) {
+          for(int var2 = 0; var2 < this.m_nWidth >> 2; ++var2) {
+-            Color var3 = new Color((int)((double)var2 * 1.5D), (int)((double)var1 * 1.5D), 130 - (var2 + var1 >> 1));
++            Color var3 =
++               new Color(
++                  (int)((double)var2 / Vari.m_App.m_fScale * 1.5D),
++                  (int)((double)var1 / Vari.m_App.m_fScale * 1.5D),
++                  130 - ((int)((var2 + var1) / Vari.m_App.m_fScale) >> 1)
++               );
+             this.m_Grp.setColor(var3);
+-            this.m_Grp.fillRect(var2 << 2, var1 << 2, 4, 4);
++            this.m_Grp.fillRect(var2 << 2, var1 << 2, Vari.Scale(4), Vari.Scale(4));
+          }
+       }
+ 
+@@ -51,15 +56,15 @@ class CInitApplet {
+       this.m_nHeight = var3;
+       this.m_nMaxDataSize = var4;
+       this.m_nLoadTotal = 0;
+-      this.m_nTextYPos = 32;
++      this.m_nTextYPos = Vari.Scale(32);
+       this.m_nBarW = (int)((double)var2 * 0.8D);
+-      this.m_nBarH = 8;
++      this.m_nBarH = Vari.Scale(8);
+       this.m_nBarX = var2 - this.m_nBarW >> 1;
+-      this.m_nBarY = var3 - 24;
++      this.m_nBarY = var3 - Vari.Scale(24);
+    }
+ 
+    public void DrawText(String var1) {
+-      this.m_Grp.drawString(var1, 16, this.m_nTextYPos);
+-      this.m_nTextYPos += 16;
++      this.m_Grp.drawString(var1, Vari.Scale(16), this.m_nTextYPos);
++      this.m_nTextYPos += Vari.Scale(16);
+    }
+ }
+diff --git a/src/CInitGame.java b/src/CInitGame.java
+index 0f05466..e240453 100644
+--- a/src/CInitGame.java
++++ b/src/CInitGame.java
+@@ -113,8 +113,8 @@ class CInitGame {
+       D3DVIEWPORT8 var1 = new D3DVIEWPORT8();
+       var1.X = 0;
+       var1.Y = 0;
+-      var1.Width = 400;
+-      var1.Height = 320;
++      var1.Width = Vari.m_App.m_nWidth;
++      var1.Height = Vari.m_App.m_nHeight;
+       var0.SetViewport(var1);
+    }
+ }
+diff --git a/src/CInputNameWondow.java b/src/CInputNameWondow.java
+index 4498a2b..23b4c5f 100644
+--- a/src/CInputNameWondow.java
++++ b/src/CInputNameWondow.java
+@@ -128,10 +128,15 @@ class CInputNameWondow extends CWindow {
+ 
+             int var2 = var5 + var4 * 13;
+             if (!m_strText[var2].equals("-") && !m_strText[var2].equals("U") && !m_strText[var2].equals("D")) {
+-               this.DrawFont(this.GetXPos(var5), this.GetYPos(var4), m_strText[var2], var1, 16);
++               this.DrawFont(this.GetXPos(var5), this.GetYPos(var4), m_strText[var2], var1, Vari.Scale(16));
+                if (var3) {
+-                  int var6 = m_strText[var2].length() * 16;
+-                  this.DrawLine(this.GetXPos(var5), this.GetYPos(var4) + 16, this.GetXPos(var5) + var6, this.GetYPos(var4) + 16);
++                  int var6 = m_strText[var2].length() * Vari.Scale(16);
++                  this.DrawLine(
++                     this.GetXPos(var5),
++                     this.GetYPos(var4) + Vari.Scale(16),
++                     this.GetXPos(var5) + var6,
++                     this.GetYPos(var4) + Vari.Scale(16)
++                  );
+                }
+             }
+ 
+@@ -176,7 +181,12 @@ class CInputNameWondow extends CWindow {
+       this.m_nCursorX = 0;
+       this.m_nCursorY = 0;
+       this.m_bDecide = false;
+-      this._Open(24 + this.m_nWidth / 2, 24 + this.m_nHeight / 2, 24, 24);
++      this._Open(
++         Vari.Scale(24) + this.m_nWidth / 2,
++         Vari.Scale(24) + this.m_nHeight / 2,
++         Vari.Scale(24),
++         Vari.Scale(24)
++      );
+    }
+ 
+    public void Select() {
+@@ -229,12 +239,12 @@ class CInputNameWondow extends CWindow {
+ 
+             if (this.m_App.m_bMouseMove) {
+                if (this.IsMouseIn()) {
+-                  int var1 = (this.m_App.m_nMouseX - super.m_nPosX - 8) / 16;
++                  int var1 = (this.m_App.m_nMouseX - super.m_nPosX - Vari.Scale(8)) / Vari.Scale(16);
+                   if (var1 >= 13) {
+                      var1 = 12;
+                   }
+ 
+-                  int var2 = (this.m_App.m_nMouseY - super.m_nPosY - 8) / 24;
++                  int var2 = (this.m_App.m_nMouseY - super.m_nPosY - Vari.Scale(8)) / Vari.Scale(24);
+                   if (var2 < 9) {
+                      int var3 = var1 + var2 * 13;
+                      if (!m_strText[var3].equals("-") && !m_strText[var3].equals("U") && !m_strText[var3].equals("D")) {
+@@ -269,7 +279,7 @@ class CInputNameWondow extends CWindow {
+             CSlipWindow var3 = new CSlipWindow();
+             var3.Create(this.m_App, "その名前は登録できません");
+             this.m_App.EntryWindow(var3);
+-            var3.OpenWindow(200, 160);
++            var3.OpenWindow(this.m_App.m_nCenterX, this.m_App.m_nCenterY);
+             this.m_App.LoopFrame(4);
+             this.m_App.WaitKey_Display();
+             var3.CloseWindow();
+diff --git a/src/CMenuWindow.java b/src/CMenuWindow.java
+index 01087b7..0ae58f1 100644
+--- a/src/CMenuWindow.java
++++ b/src/CMenuWindow.java
+@@ -105,7 +105,7 @@ class CMenuWindow extends CWindow {
+    }
+ 
+    public void DrawMessage() {
+-      int var1 = 8;
++      int var1 = Vari.Scale(8);
+       byte var2 = 0;
+       if (this.GetFlag(2)) {
+          var2 = 2;
+@@ -120,7 +120,12 @@ class CMenuWindow extends CWindow {
+             }
+ 
+             this.m_App.SetColor(this.m_FontColor);
+-            this.m_App.m_OffsGraph.drawLine(8 + this.GetXPos(), this.GetYPos() + var1 + 16, 8 + this.GetXPos() + this.m_nTextLength * 16, this.GetYPos() + var1 + 16);
++            this.m_App.m_OffsGraph.drawLine(
++               Vari.Scale(8) + this.GetXPos(),
++               this.GetYPos() + var1 + Vari.Scale(16),
++               Vari.Scale(8) + this.GetXPos() + this.m_nTextLength * Vari.Scale(16),
++               this.GetYPos() + var1 + Vari.Scale(16)
++            );
+          } else {
+             if (this.m_anFlag[var3] == 1) {
+                this.m_FontColor = Def.GetColor(COLOR_TABLE[2]);
+@@ -131,8 +136,8 @@ class CMenuWindow extends CWindow {
+             this.m_App.SetColor(this.m_FontColor);
+          }
+ 
+-         this.DrawFont(8, var1, this.m_astrMenu[var3], this.m_FontColor, 16);
+-         var1 += 24;
++         this.DrawFont(Vari.Scale(8), var1, this.m_astrMenu[var3], this.m_FontColor, Vari.Scale(16));
++         var1 += Vari.Scale(24);
+       }
+ 
+    }
+@@ -162,7 +167,7 @@ class CMenuWindow extends CWindow {
+    }
+ 
+    public int GetWidth() {
+-      int var1 = this.m_nTextLength * 16 + 16;
++      int var1 = Vari.Scale(this.m_nTextLength * 16 + 16);
+       return var1;
+    }
+ 
+@@ -239,7 +244,7 @@ class CMenuWindow extends CWindow {
+ 
+                if (this.m_App.m_bMouseMove) {
+                   if (this.IsMouseIn()) {
+-                     int var1 = (this.m_App.m_nMouseY - super.m_nPosY - 8) / 24;
++                     int var1 = (this.m_App.m_nMouseY - super.m_nPosY - Vari.Scale(8)) / Vari.Scale(24);
+                      if (var1 < this.m_nMenuNum && this.m_anFlag[var1] != 2) {
+                         this.m_nSelect = var1;
+                      }
+diff --git a/src/CMessManage.java b/src/CMessManage.java
+index a94870e..1649fd2 100644
+--- a/src/CMessManage.java
++++ b/src/CMessManage.java
+@@ -26,7 +26,7 @@ class CMessManage {
+ 
+    public void ClearMessageStop() {
+       this.SetColor(this.m_BackColor);
+-      this.m_MessGraph.fillRect(this.m_nStopX - 1, this.m_nStopY - 3, 18, 22);
++      this.m_MessGraph.fillRect(this.m_nStopX - 1, this.m_nStopY - 3, Vari.Scale(18), Vari.Scale(22));
+    }
+ 
+    public boolean CheckScroll() {
+@@ -39,8 +39,15 @@ class CMessManage {
+ 
+          for(int var2 = 0; var2 < var1; ++var2) {
+             this.SetColor(this.m_BackColor);
+-            this.m_MessGraph.fillRect(0, 0, this.m_nWidth, 8);
+-            this.m_MessGraph.copyArea(0, 6, this.m_nWidth, this.m_nHeight - 6, 0, -6);
++            this.m_MessGraph.fillRect(0, 0, this.m_nWidth, Vari.Scale(8));
++            this.m_MessGraph.copyArea(
++               0,
++               Vari.Scale(6),
++               this.m_nWidth,
++               this.m_nHeight - Vari.Scale(6),
++               0,
++               Vari.Scale(-6)
++            );
+             this.m_App.MainFrame();
+          }
+ 
+@@ -59,14 +66,14 @@ class CMessManage {
+       this.m_bDispFont = false;
+       this.m_MessImage = var1.createImage(var3, var4);
+       this.m_MessGraph = this.m_MessImage.getGraphics();
+-      this.m_MessGraph.setFont(new Font("Serif", 1, 16));
++      this.m_MessGraph.setFont(new Font("Serif", 1, Vari.Scale(16)));
+       this.ClearWindow();
+-      this.m_nStopX = var3 - 16 - 8;
+-      this.m_nStopY = var4 - 16 - 8;
++      this.m_nStopX = var3 - Vari.Scale(16 + 8);
++      this.m_nStopY = var4 - Vari.Scale(16 + 8);
+    }
+ 
+    public void MessageStop() {
+-      int[] var1 = new int[]{-2, 0, 1, 2, 1, 0};
++      int[] var1 = new int[]{Vari.Scale(-2), 0, Vari.Scale(1), Vari.Scale(2), Vari.Scale(1), 0};
+       int var2 = 0;
+       this.m_bMessStop = true;
+ 
+@@ -157,7 +164,7 @@ class CMessManage {
+ 
+    private void DrawFont(int var1, int var2, String var3) {
+       this.SetColor(this.m_FontColor);
+-      this.m_MessGraph.drawString(var3, var1, var2 + 16);
++      this.m_MessGraph.drawString(var3, var1, var2 + Vari.Scale(16));
+    }
+ 
+    public int GetWidth() {
+@@ -165,7 +172,7 @@ class CMessManage {
+    }
+ 
+    public int GetTextXPos() {
+-      return this.m_nCurXPos * 16 + 8;
++      return Vari.Scale(this.m_nCurXPos * 16 + 8);
+    }
+ 
+    public void DrawName() {
+@@ -266,6 +273,6 @@ class CMessManage {
+    }
+ 
+    public int GetTextYPos() {
+-      return this.m_nCurYPos * 24 + 8;
++      return Vari.Scale(this.m_nCurYPos * 24 + 8);
+    }
+ }
+diff --git a/src/CMessWindow.java b/src/CMessWindow.java
+index 5bcb998..696b1f4 100644
+--- a/src/CMessWindow.java
++++ b/src/CMessWindow.java
+@@ -10,9 +10,9 @@ class CMessWindow extends CWindow {
+ 
+    public void Create(ARpg var1) {
+       this.m_App = var1;
+-      this._Create(var1, Vari.m_WinColor, 384, 84, 4);
++      this._Create(var1, Vari.m_WinColor, Vari.Scale(384), Vari.Scale(84), 4);
+       this.m_Mess = new CMessManage();
+-      this.m_Mess.Create(var1, 4, 380, 80, Vari.m_WinColor);
++      this.m_Mess.Create(var1, 4, Vari.Scale(380), Vari.Scale(80), Vari.m_WinColor);
+    }
+ 
+    public void DrawMessage() {
+@@ -53,16 +53,16 @@ class CMessWindow extends CWindow {
+    }
+ 
+    public void OpenWindow(int var1) {
+-      short var2 = 200;
+-      byte var3 = 8;
++      short var2 = (short)this.m_App.m_nCenterX;
++      byte var3 = (byte)Vari.Scale(8);
+       short var4;
+       short var5;
+       if (var1 == 0) {
+-         var5 = 50;
+-         var4 = 8;
++         var5 = (short)Vari.Scale(50);
++         var4 = (short)Vari.Scale(8);
+       } else {
+-         var5 = 270;
+-         var4 = 228;
++         var5 = (short)Vari.Scale(270);
++         var4 = (short)Vari.Scale(228);
+       }
+ 
+       this._Open(var2, var5, var3, var4);
+diff --git a/src/CMoneyWindow.java b/src/CMoneyWindow.java
+index 299b98a..70713c4 100644
+--- a/src/CMoneyWindow.java
++++ b/src/CMoneyWindow.java
+@@ -11,13 +11,13 @@ class CMoneyWindow extends CWindow {
+ 
+    public void Create(ARpg var1) {
+       this.m_App = var1;
+-      this._Create((CWinEntry)var1, Vari.m_WinColor, 144, 32, 4);
++      this._Create((CWinEntry)var1, Vari.m_WinColor, Vari.Scale(144), Vari.Scale(32), 4);
+    }
+ 
+    public void DrawMessage() {
+       String var1 = Calc3D.NumberString(this.m_App.m_Play.GetGold(), 7);
+       var1 = var1 + "Ｇ";
+-      this.DrawFont(8, 8, var1, Def.GetColor(0), 16);
++      this.DrawFont(Vari.Scale(8), Vari.Scale(8), var1, Def.GetColor(0), Vari.Scale(16));
+    }
+ 
+    public void CloseWindow() {
+@@ -34,6 +34,6 @@ class CMoneyWindow extends CWindow {
+    }
+ 
+    public void OpenWindow() {
+-      this._Open(312, 32, 240, 16);
++      this._Open(Vari.Scale(312), Vari.Scale(32), Vari.Scale(240), Vari.Scale(16));
+    }
+ }
+diff --git a/src/CNumWindow.java b/src/CNumWindow.java
+index 0ea31fe..45430f8 100644
+--- a/src/CNumWindow.java
++++ b/src/CNumWindow.java
+@@ -21,17 +21,23 @@ class CNumWindow extends CWindow {
+       this.m_bMoveRight = false;
+       this.m_bMoveLeft = false;
+       this.SetMax(var4);
+-      this._Create((CWinEntry)var1, Vari.m_WinColor, 320, 32, 4);
++      this._Create((CWinEntry)var1, Vari.m_WinColor, Vari.Scale(320), Vari.Scale(32), 4);
+    }
+ 
+    public void DrawMessage() {
+-      this.DrawFont(8, 8, this.m_szName, Def.GetColor(0), 16);
+-      this.DrawFont(136, 8, "×", Def.GetColor(0), 16);
+-      this.DrawFont(152, 8, Calc3D.NumberString(this.m_nNum, 1), Def.GetColor(0), 16);
++      this.DrawFont(Vari.Scale(8), Vari.Scale(8), this.m_szName, Def.GetColor(0), Vari.Scale(16));
++      this.DrawFont(Vari.Scale(136), Vari.Scale(8), "×", Def.GetColor(0), Vari.Scale(16));
++      this.DrawFont(
++         Vari.Scale(152),
++         Vari.Scale(8),
++         Calc3D.NumberString(this.m_nNum, 1),
++         Def.GetColor(0),
++         Vari.Scale(16)
++      );
+       int var1 = this.m_nNum * this.m_nPrice;
+       String var2 = Calc3D.NumberString(var1, 7);
+       var2 = var2 + "Ｇ";
+-      this.DrawFont(184, 8, var2, Def.GetColor(0), 16);
++      this.DrawFont(Vari.Scale(184), Vari.Scale(8), var2, Def.GetColor(0), Vari.Scale(16));
+    }
+ 
+    public void CloseWindow() {
+@@ -59,7 +65,7 @@ class CNumWindow extends CWindow {
+    }
+ 
+    public void OpenWindow() {
+-      this._Open(192, 96, 32, 80);
++      this._Open(Vari.Scale(192), Vari.Scale(96), Vari.Scale(32), Vari.Scale(80));
+    }
+ 
+    public int LoopFrame() {
+diff --git a/src/CPassWordPanel.java b/src/CPassWordPanel.java
+index 73ee775..79262ce 100644
+--- a/src/CPassWordPanel.java
++++ b/src/CPassWordPanel.java
+@@ -70,7 +70,7 @@ class CPassWordPanel extends CWinEntry {
+       this.m_Panel.add(this.m_Cancel);
+       this.setLayout(new BorderLayout());
+       this.add("South", this.m_Panel);
+-      this.m_TextArea.setFont(new Font("Courier", 1, 12));
++      this.m_TextArea.setFont(new Font("Courier", 1, Vari.Scale(12)));
+    }
+ 
+    public void ReleasePanel() {
+diff --git a/src/CPrmChangeWindow.java b/src/CPrmChangeWindow.java
+index 9c5ed99..4b6ed08 100644
+--- a/src/CPrmChangeWindow.java
++++ b/src/CPrmChangeWindow.java
+@@ -21,7 +21,7 @@ class CPrmChangeWindow extends CWindow {
+          this.m_NowItem = Vari.GetItemData(this.m_nNowItem);
+       }
+ 
+-      this._Create((CWinEntry)var1, Vari.m_WinColor, 112, 128, 4);
++      this._Create((CWinEntry)var1, Vari.m_WinColor, Vari.Scale(112), Vari.Scale(128), 4);
+    }
+ 
+    public void DrawMessage() {
+@@ -48,7 +48,7 @@ class CPrmChangeWindow extends CWindow {
+             var3 = var3 + Calc3D.NumberString(-var2, 2);
+          }
+ 
+-         this.DrawFont(8, this.GetYPos(var6), var3, var1, 16);
++         this.DrawFont(Vari.Scale(8), this.GetYPos(var6), var3, var1, Vari.Scale(16));
+          ++var6;
+       } while(var6 < 5);
+ 
+@@ -91,6 +91,6 @@ class CPrmChangeWindow extends CWindow {
+    public void OpenWindow(int var1, int var2) {
+       this.m_nXPos = var1;
+       this.m_nYPos = var2;
+-      this._Open(this.m_nXPos + 56, this.m_nYPos + 64, this.m_nXPos, this.m_nYPos);
++      this._Open(this.m_nXPos + Vari.Scale(56), this.m_nYPos + Vari.Scale(64), this.m_nXPos, this.m_nYPos);
+    }
+ }
+diff --git a/src/CQuiz.java b/src/CQuiz.java
+index 162efd3..b65417f 100644
+--- a/src/CQuiz.java
++++ b/src/CQuiz.java
+@@ -34,7 +34,7 @@ class CQuiz {
+       } while(var7 < 4);
+ 
+       this.m_Menu.ResetCursorPos();
+-      this.m_Menu.OpenWindow(16, 16);
++      this.m_Menu.OpenWindow(Vari.Scale(16), Vari.Scale(16));
+       var8.LoopFrame(4);
+    }
+ 
+diff --git a/src/CQuizTimeWindow.java b/src/CQuizTimeWindow.java
+index e85cf59..6a86ea1 100644
+--- a/src/CQuizTimeWindow.java
++++ b/src/CQuizTimeWindow.java
+@@ -1,8 +1,8 @@
+ class CQuizTimeWindow extends CWindow {
+-   static final int WIN_WIDTH = 48;
+-   static final int WIN_HEIGHT = 32;
++   static final int WIN_WIDTH = Vari.Scale(48);
++   static final int WIN_HEIGHT = Vari.Scale(32);
+    static final int WIN_XPOS;
+-   static final int WIN_YPOS = 16;
++   static final int WIN_YPOS = Vari.Scale(16);
+    private ARpg m_App;
+    private boolean m_bDisp;
+    private long m_lStartTime;
+@@ -16,7 +16,7 @@ class CQuizTimeWindow extends CWindow {
+       if (this.m_bDisp) {
+          int var1 = this.GetTime();
+          String var2 = Calc3D.NumberString(var1, 2);
+-         this.DrawFont(8, 8, var2, Def.GetColor(0), 16);
++         this.DrawFont(Vari.Scale(8), Vari.Scale(8), var2, Def.GetColor(0), Vari.Scale(16));
+       }
+ 
+    }
+@@ -35,11 +35,11 @@ class CQuizTimeWindow extends CWindow {
+    }
+ 
+    static {
+-      WIN_XPOS = 400 - WIN_WIDTH - 16;
++      WIN_XPOS = Vari.Scale(400) - WIN_WIDTH - Vari.Scale(16);
+    }
+ 
+    public void OpenWindow() {
+-      this._Open(WIN_XPOS + WIN_WIDTH / 2, 16 + WIN_HEIGHT / 2, WIN_XPOS, 16);
++      this._Open(WIN_XPOS + WIN_WIDTH / 2, Vari.Scale(16) + WIN_HEIGHT / 2, WIN_XPOS, Vari.Scale(16));
+    }
+ 
+    public int GetTime() {
+diff --git a/src/CSkillWindow.java b/src/CSkillWindow.java
+index 3fe6f1f..9a42027 100644
+--- a/src/CSkillWindow.java
++++ b/src/CSkillWindow.java
+@@ -11,11 +11,11 @@ class CSkillWindow extends CWindow {
+ 
+    public void Create(ARpg var1) {
+       this.m_App = var1;
+-      this._Create((CWinEntry)var1, Vari.m_WinColor, 272, 32, 4);
++      this._Create((CWinEntry)var1, Vari.m_WinColor, Vari.Scale(272), Vari.Scale(32), 4);
+    }
+ 
+    public void DrawMessage() {
+-      this.DrawFont(this.m_nTextX, 8, this.m_strMess, Def.GetColor(0), 16);
++      this.DrawFont(this.m_nTextX, Vari.Scale(8), this.m_strMess, Def.GetColor(0), Vari.Scale(16));
+    }
+ 
+    public void CloseWindow() {
+@@ -39,8 +39,8 @@ class CSkillWindow extends CWindow {
+       this.m_nCount = 0;
+       this.m_strMess = new String(var1);
+       int var2 = this.m_strMess.length();
+-      this.m_nTextX = 136 - var2 * 8;
+-      this._Open(200, 32, 64, 16);
++      this.m_nTextX = Vari.Scale(136 - var2 * 8);
++      this._Open(this.m_App.m_nCenterX, Vari.Scale(32), Vari.Scale(64), Vari.Scale(16));
+    }
+ 
+    CSkillWindow() {
+diff --git a/src/CSkyHand.java b/src/CSkyHand.java
+index 90bbe73..482169a 100644
+--- a/src/CSkyHand.java
++++ b/src/CSkyHand.java
+@@ -59,7 +59,7 @@ class CSkyHand {
+ 
+    private void OpenWindow() {
+       Vari.m_App.EntryWindow(this.m_Menu);
+-      this.m_Menu.OpenWindow(16, 16);
++      this.m_Menu.OpenWindow(Vari.Scale(16), Vari.Scale(16));
+       Vari.m_App.LoopFrame(4);
+    }
+ 
+diff --git a/src/CSlipWindow.java b/src/CSlipWindow.java
+index 99cfb6c..9e122a6 100644
+--- a/src/CSlipWindow.java
++++ b/src/CSlipWindow.java
+@@ -12,7 +12,7 @@ class CSlipWindow extends CWindow {
+       this.m_astrMess = new String[1];
+       this.m_astrMess[0] = new String(var2);
+       this.m_nLines = 1;
+-      this.m_nWidth = var2.length() * 16 + 16;
++      this.m_nWidth = Vari.Scale(var2.length() * 16 + 16);
+       this.m_nHeight = this.GetHeight_Text(this.m_nLines);
+       this._Create((CWinEntry)var1, Vari.m_WinColor, this.m_nWidth, this.m_nHeight, 4);
+    }
+@@ -28,7 +28,7 @@ class CSlipWindow extends CWindow {
+ 
+    public void DrawMessage() {
+       for(int var1 = 0; var1 < this.m_nLines; ++var1) {
+-         this.DrawFont(8, this.GetYPos(var1), this.m_astrMess[var1], Def.GetColor(0), 16);
++         this.DrawFont(Vari.Scale(8), this.GetYPos(var1), this.m_astrMess[var1], Def.GetColor(0), Vari.Scale(16));
+       }
+ 
+    }
+diff --git a/src/CStaffRoll.java b/src/CStaffRoll.java
+index f340fac..8562cd0 100644
+--- a/src/CStaffRoll.java
++++ b/src/CStaffRoll.java
+@@ -25,7 +25,7 @@ class CStaffRoll {
+ 
+       do {
+          if (var1 >= -22 && var1 <= 322) {
+-            DrawFont(20, var1, STAFF_TEXT[var2]);
++            DrawFont(Vari.Scale(20), Vari.Scale(var1), STAFF_TEXT[var2]);
+          }
+ 
+          var1 += 20;
+@@ -90,10 +90,10 @@ class CStaffRoll {
+    }
+ 
+    public static void DrawFont(int var0, int var1, String var2) {
+-      Vari.m_App.SetFontSize(20);
++      Vari.m_App.SetFontSize(Vari.Scale(20));
+ 
+       for(int var5 = 0; var5 < var2.length(); ++var5) {
+-         int var4 = var0 + var5 * 20;
++         int var4 = var0 + var5 * Vari.Scale(20);
+          String var3 = var2.substring(var5, var5 + 1);
+          Vari.m_App.SetColor(Color.black);
+          Vari.m_App.DrawFont(var4 + 1, var1 + 1, var3);
+@@ -121,7 +121,7 @@ class CStaffRoll {
+    public static void End() {
+       Vari.m_App.WaitRepaint(1000);
+       Vari.m_App.SetColor(Color.black);
+-      Vari.m_App.FillRect(0, 0, 400, 320);
++      Vari.m_App.FillRect(0, 0, Vari.m_App.m_nWidth, Vari.m_App.m_nHeight);
+       Vari.m_App.WaitRepaint(1000);
+       Vari.m_SysFlag.ResetFlag(16);
+       Vari.m_App.m_Flag.SetCameraVect1(3.1415927F);
+diff --git a/src/CStatusWin.java b/src/CStatusWin.java
+index 4411e26..2da6568 100644
+--- a/src/CStatusWin.java
++++ b/src/CStatusWin.java
+@@ -19,56 +19,56 @@ class CStatusWin extends CWindow {
+       CChrParam var1 = Vari.GetChrPrm(this.m_nChrNo);
+       Color var2 = Def.GetColor(0);
+       new String();
+-      this.DrawFont(8, this.GetYPos(0), var1.GetName(), var2, 16);
++      this.DrawFont(Vari.Scale(8), this.GetYPos(0), var1.GetName(), var2, Vari.Scale(16));
+       String var3 = "ＬＶ";
+       var3 = var3 + Calc3D.NumberString(var1.m_nLV, 2);
+-      this.DrawFont(136, this.GetYPos(0), var3, var2, 16);
++      this.DrawFont(Vari.Scale(136), this.GetYPos(0), var3, var2, Vari.Scale(16));
+       var3 = "ＨＰ　";
+       var3 = var3 + Calc3D.NumberString(var1.m_nHP, 4);
+       var3 = var3 + "／";
+       var3 = var3 + Calc3D.NumberString(var1.GetMaxHP(), 4);
+-      this.DrawFont(8, this.GetYPos(1), var3, var2, 16);
++      this.DrawFont(Vari.Scale(8), this.GetYPos(1), var3, var2, Vari.Scale(16));
+       var3 = "ＭＰ　";
+       var3 = var3 + Calc3D.NumberString(var1.m_nMP, 4);
+       var3 = var3 + "／";
+       var3 = var3 + Calc3D.NumberString(var1.GetMaxMP(), 4);
+-      this.DrawFont(8, this.GetYPos(2), var3, var2, 16);
++      this.DrawFont(Vari.Scale(8), this.GetYPos(2), var3, var2, Vari.Scale(16));
+       var3 = "攻撃力　";
+       var3 = var3 + Calc3D.NumberString(var1.GetStr_Base(), 3);
+       var3 = var3 + "（";
+       var3 = var3 + Calc3D.NumberString(var1.GetStr_Base() + var1.GetStr_Item(), 3);
+       var3 = var3 + "）";
+-      this.DrawFont(8, this.GetYPos(3), var3, var2, 16);
++      this.DrawFont(Vari.Scale(8), this.GetYPos(3), var3, var2, Vari.Scale(16));
+       var3 = "精神力　";
+       var3 = var3 + Calc3D.NumberString(var1.GetInt_Base(), 3);
+       var3 = var3 + "（";
+       var3 = var3 + Calc3D.NumberString(var1.GetInt_Base() + var1.GetInt_Item(), 3);
+       var3 = var3 + "）";
+-      this.DrawFont(8, this.GetYPos(4), var3, var2, 16);
++      this.DrawFont(Vari.Scale(8), this.GetYPos(4), var3, var2, Vari.Scale(16));
+       var3 = "防御力　";
+       var3 = var3 + Calc3D.NumberString(var1.GetDef_Base(), 3);
+       var3 = var3 + "（";
+       var3 = var3 + Calc3D.NumberString(var1.GetDef_Base() + var1.GetDef_Item(), 3);
+       var3 = var3 + "）";
+-      this.DrawFont(8, this.GetYPos(5), var3, var2, 16);
++      this.DrawFont(Vari.Scale(8), this.GetYPos(5), var3, var2, Vari.Scale(16));
+       var3 = "素早さ　";
+       var3 = var3 + Calc3D.NumberString(var1.GetAgi_Base(), 3);
+       var3 = var3 + "（";
+       var3 = var3 + Calc3D.NumberString(var1.GetAgi_Base() + var1.GetAgi_Item(), 3);
+       var3 = var3 + "）";
+-      this.DrawFont(8, this.GetYPos(6), var3, var2, 16);
++      this.DrawFont(Vari.Scale(8), this.GetYPos(6), var3, var2, Vari.Scale(16));
+       var3 = "器用さ　";
+       var3 = var3 + Calc3D.NumberString(var1.GetDex_Base(), 3);
+       var3 = var3 + "（";
+       var3 = var3 + Calc3D.NumberString(var1.GetDex_Base() + var1.GetDex_Item(), 3);
+       var3 = var3 + "）";
+-      this.DrawFont(8, this.GetYPos(7), var3, var2, 16);
++      this.DrawFont(Vari.Scale(8), this.GetYPos(7), var3, var2, Vari.Scale(16));
+       var3 = "ＥＸＰ　　";
+       var3 = var3 + Calc3D.NumberString(var1.m_nExp, 7);
+-      this.DrawFont(8, this.GetYPos(8), var3, var2, 16);
++      this.DrawFont(Vari.Scale(8), this.GetYPos(8), var3, var2, Vari.Scale(16));
+       var3 = "次ＬＶ　　";
+       var3 = var3 + Calc3D.NumberString(CChrParam.CalcNextExp(var1.m_nLV), 7);
+-      this.DrawFont(8, this.GetYPos(9), var3, var2, 16);
++      this.DrawFont(Vari.Scale(8), this.GetYPos(9), var3, var2, Vari.Scale(16));
+    }
+ 
+    public void CloseWindow() {
+@@ -85,9 +85,9 @@ class CStatusWin extends CWindow {
+    }
+ 
+    public void OpenWindow() {
+-      short var1 = 152;
+-      short var2 = 140;
+-      this._Create((CWinEntry)this.m_App, Vari.m_WinColor, 208, 248, 4);
+-      this._Open(var1, var2, 48, 16);
++      short var1 = (short)Vari.Scale(152);
++      short var2 = (short)Vari.Scale(140);
++      this._Create((CWinEntry)this.m_App, Vari.m_WinColor, Vari.Scale(208), Vari.Scale(248), 4);
++      this._Open(var1, var2, Vari.Scale(48), Vari.Scale(16));
+    }
+ }
+diff --git a/src/CSysMenu.java b/src/CSysMenu.java
+index cb4898d..ebcebc9 100644
+--- a/src/CSysMenu.java
++++ b/src/CSysMenu.java
+@@ -32,7 +32,7 @@ class CSysMenu {
+       } else {
+          CUseItemList var1 = new CUseItemList();
+          var1.CreateList(this.m_App);
+-         var1.Run(48, 16);
++         var1.Run(Vari.Scale(48), Vari.Scale(16));
+       }
+    }
+ 
+@@ -54,7 +54,7 @@ class CSysMenu {
+          var3.SetText(2, "Ｚキーで選択・選択解除。");
+          var3.SetText(3, "「たたかう」は解除できません");
+          this.m_App.EntryWindow(var3);
+-         var3.OpenWindow(200, 224);
++         var3.OpenWindow(this.m_App.m_nCenterX, Vari.Scale(224));
+          this.m_App.LoopFrame(4);
+          var2.LoopFrame();
+          var3.CloseWindow();
+@@ -100,7 +100,7 @@ class CSysMenu {
+          if (!var2._Create(this.m_App, Vari.GetPartyWork(var1))) {
+             this.m_App.Slip("使用できる特技がありません");
+          } else {
+-            var2.Run(32, 16);
++            var2.Run(Vari.Scale(32), Vari.Scale(16));
+          }
+ 
+          if (Vari.m_nSkyHand != -1) {
+@@ -203,12 +203,12 @@ class CSysMenu {
+ 
+    private void OpenWindow() {
+       this.m_App.EntryWindow(this.m_Menu);
+-      this.m_Menu.OpenWindow(16, 16);
++      this.m_Menu.OpenWindow(Vari.Scale(16), Vari.Scale(16));
+       this.m_App.OpenMoneyWindow();
+       this.m_App.EntryWindow(this.m_TimeWindow);
+       this.m_TimeWindow.OpenWindow();
+       this.m_App.LoopFrame(4);
+-      Vari.m_ChrSel.Create(this.m_App, 32, 32);
++      Vari.m_ChrSel.Create(this.m_App, Vari.Scale(32), Vari.Scale(32));
+    }
+ 
+    private void DoStatus() {
+@@ -225,7 +225,7 @@ class CSysMenu {
+          this.m_App.EntryWindow(var3);
+          CSlipWindow var4 = new CSlipWindow();
+          var4.Create(this.m_App, "Ｚ：アビリティ表示");
+-         var4.OpenWindow(96, 288);
++         var4.OpenWindow(Vari.Scale(96), Vari.Scale(288));
+          this.m_App.EntryWindow(var4);
+          this.m_App.LoopFrame(4);
+ 
+@@ -251,7 +251,7 @@ class CSysMenu {
+    private void DoAbility(int var1, int var2) {
+       CAbilityWin var3 = new CAbilityWin();
+       var3.Create(this.m_App, var1);
+-      var3.OpenWindow(var2, 64, 32);
++      var3.OpenWindow(var2, Vari.Scale(64), Vari.Scale(32));
+       this.m_App.EntryWindow(var3);
+       this.m_App.LoopFrame(4);
+ 
+@@ -293,7 +293,7 @@ class CSysMenu {
+       var1.SetMenuText(0, "ステータス");
+       var1.SetMenuText(1, "アビリティ");
+       this.m_App.EntryWindow(var1);
+-      var1.OpenWindow(32, 32);
++      var1.OpenWindow(Vari.Scale(32), Vari.Scale(32));
+       this.m_App.LoopFrame(4);
+ 
+       while(true) {
+diff --git a/src/CSysYesNo.java b/src/CSysYesNo.java
+index cd7b54a..62a1b85 100644
+--- a/src/CSysYesNo.java
++++ b/src/CSysYesNo.java
+@@ -3,13 +3,13 @@ class CSysYesNo {
+       CSlipWindow var3 = new CSlipWindow();
+       var3.Create(var1, var2);
+       var1.EntryWindow(var3);
+-      var3.OpenWindow(200, 80);
++      var3.OpenWindow(var1.m_nCenterX, Vari.Scale(80));
+       CMenuWindow var4 = new CMenuWindow();
+       var4.Create(var1, 2);
+       var4.SetMenuText(0, "はい");
+       var4.SetMenuText(1, "いいえ");
+       var1.EntryWindow(var4);
+-      var4.OpenWindow(400 - var4.GetWidth() >> 1, 128);
++      var4.OpenWindow(var1.m_nWidth - var4.GetWidth() >> 1, Vari.Scale(128));
+       var1.LoopFrame(4);
+       int var5 = var4.LoopFrame();
+       var3.CloseWindow();
+diff --git a/src/CTimeWindow.java b/src/CTimeWindow.java
+index 6a8d727..fbf514d 100644
+--- a/src/CTimeWindow.java
++++ b/src/CTimeWindow.java
+@@ -7,7 +7,7 @@ class CTimeWindow extends CWindow {
+ 
+    public void Create(ARpg var1) {
+       this.m_App = var1;
+-      this._Create((CWinEntry)var1, Vari.m_WinColor, 144, 32, 4);
++      this._Create((CWinEntry)var1, Vari.m_WinColor, Vari.Scale(144), Vari.Scale(32), 4);
+    }
+ 
+    public void DrawMessage() {
+@@ -19,7 +19,7 @@ class CTimeWindow extends CWindow {
+       var2 = var2 + Calc3D.NumberString0(var1.GetMinute(), 2);
+       var2 = var2 + "：";
+       var2 = var2 + Calc3D.NumberString0(var1.GetSecond(), 2);
+-      this.DrawFont(8, 8, var2, Def.GetColor(0), 16);
++      this.DrawFont(Vari.Scale(8), Vari.Scale(8), var2, Def.GetColor(0), Vari.Scale(16));
+    }
+ 
+    public void CloseWindow() {
+@@ -36,6 +36,6 @@ class CTimeWindow extends CWindow {
+    }
+ 
+    public void OpenWindow() {
+-      this._Open(312, 288, 240, 272);
++      this._Open(Vari.Scale(312), Vari.Scale(288), Vari.Scale(240), Vari.Scale(272));
+    }
+ }
+diff --git a/src/CTitle.java b/src/CTitle.java
+index a9a8064..b8e16ce 100644
+--- a/src/CTitle.java
++++ b/src/CTitle.java
+@@ -5,26 +5,26 @@ class CTitle {
+ 
+    public static void DrawDisplay(ARpg var0) {
+       ClearSurface(var0);
+-      var0.DrawFontC(200, 64, "すいかが食べたい", 32, Color.white);
+-      var0.DrawFontC(200, 190, "マウスのボタンを押してね", 16, Color.white);
+-      var0.DrawFontC(200, 270, "2002-2008　製作・著作　くろすけ", 16, Color.white);
++      var0.DrawFontC(var0.m_nCenterX, Vari.Scale(64), "すいかが食べたい", Vari.Scale(32), Color.white);
++      var0.DrawFontC(var0.m_nCenterX, Vari.Scale(190), "マウスのボタンを押してね", Vari.Scale(16), Color.white);
++      var0.DrawFontC(var0.m_nCenterX, Vari.Scale(270), "2002-2008　製作・著作　くろすけ", Vari.Scale(16), Color.white);
+       var0.GetDisplay();
+    }
+ 
+    public static void Opening(ARpg var0) {
+       var0.m_OffsGraph.setColor(Color.black);
+-      var0.FillRect(0, 0, 400, 320);
++      var0.FillRect(0, 0, var0.m_nWidth, var0.m_nHeight);
+       var0.WaitRepaint(200);
+       int var3 = 0;
+ 
+       do {
+-         int var2 = (var3 + 1) * 16;
++         int var2 = (var3 + 1) * Vari.Scale(16);
+          int var4 = 0;
+ 
+          do {
+             var0.WaitRepaint(30);
+             Color var1 = new Color(anColor[var4], anColor[var4], anColor[var4]);
+-            var0.DrawFontC(200, (320 - var2) / 2, "すいかが食べたい", var2, var1);
++            var0.DrawFontC(var0.m_nCenterX, (var0.m_nHeight - var2) / 2, "すいかが食べたい", var2, var1);
+             var0.WaitRepaint(30);
+             ++var4;
+          } while(var4 < 36);
+@@ -47,15 +47,15 @@ class CTitle {
+ 
+    public static void TextSc_02() {
+       Vari.m_App.m_OffsGraph.setColor(Color.black);
+-      Vari.m_App.FillRect(0, 0, 400, 320);
++      Vari.m_App.FillRect(0, 0, Vari.m_App.m_nWidth, Vari.m_App.m_nHeight);
+       Vari.m_App.WaitRepaint(200);
+-      OnText("すいかが食べたい", 200, 100, 32, 8);
++      OnText("すいかが食べたい", Vari.m_App.m_nCenterX, Vari.Scale(100), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+-      OnText("第２部完", 300, 250, 32, 8);
++      OnText("第２部完", Vari.Scale(300), Vari.Scale(250), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(3000);
+-      OffText("すいかが食べたい", 200, 100, 32, 8);
++      OffText("すいかが食べたい", Vari.m_App.m_nCenterX, Vari.Scale(100), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+-      OffText("第２部完", 300, 250, 32, 8);
++      OffText("第２部完", Vari.Scale(300), Vari.Scale(250), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+    }
+ 
+@@ -112,33 +112,33 @@ class CTitle {
+ 
+    public static void TextSc_00() {
+       Vari.m_App.m_OffsGraph.setColor(Color.black);
+-      Vari.m_App.FillRect(0, 0, 400, 320);
++      Vari.m_App.FillRect(0, 0, Vari.m_App.m_nWidth, Vari.m_App.m_nHeight);
+       Vari.m_App.WaitRepaint(200);
+-      OnText("すいかが食べたい", 200, 100, 32, 8);
++      OnText("すいかが食べたい", Vari.m_App.m_nCenterX, Vari.Scale(100), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+-      OnText("第１部完", 300, 250, 32, 8);
++      OnText("第１部完", Vari.Scale(300), Vari.Scale(250), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(3000);
+-      OffText("すいかが食べたい", 200, 100, 32, 8);
++      OffText("すいかが食べたい", Vari.m_App.m_nCenterX, Vari.Scale(100), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+-      OffText("第１部完", 300, 250, 32, 8);
++      OffText("第１部完", Vari.Scale(300), Vari.Scale(250), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+    }
+ 
+    public static void TextSc_01() {
+       Vari.m_App.m_OffsGraph.setColor(Color.black);
+-      Vari.m_App.FillRect(0, 0, 400, 320);
++      Vari.m_App.FillRect(0, 0, Vari.m_App.m_nWidth, Vari.m_App.m_nHeight);
+       Vari.m_App.WaitRepaint(200);
+-      OnText("第２部", 200, 80, 32, 8);
++      OnText("第２部", Vari.m_App.m_nCenterX, Vari.Scale(80), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+-      OnText("やっぱりすいかが食べたい", 200, 120, 32, 8);
++      OnText("やっぱりすいかが食べたい", Vari.m_App.m_nCenterX, Vari.Scale(120), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+-      OnText("－その誇り高き血統－", 240, 250, 20, 8);
++      OnText("－その誇り高き血統－", Vari.Scale(240), Vari.Scale(250), Vari.Scale(20), 8);
+       Vari.m_App.WaitRepaint(3000);
+-      OffText("第２部", 200, 80, 32, 8);
++      OffText("第２部", Vari.m_App.m_nCenterX, Vari.Scale(80), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+-      OffText("やっぱりすいかが食べたい", 200, 120, 32, 8);
++      OffText("やっぱりすいかが食べたい", Vari.m_App.m_nCenterX, Vari.Scale(120), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+-      OffText("－その誇り高き血統－", 240, 250, 20, 8);
++      OffText("－その誇り高き血統－", Vari.Scale(240), Vari.Scale(250), Vari.Scale(20), 8);
+       Vari.m_App.WaitRepaint(200);
+    }
+ 
+@@ -149,7 +149,7 @@ class CTitle {
+       var1.SetMenuText(1, "続きから");
+       var1.SetSelectNo(1);
+       var0.EntryWindow(var1);
+-      var1.OpenWindow(16, 16);
++      var1.OpenWindow(Vari.Scale(16), Vari.Scale(16));
+       var0.LoopFrame(4);
+       int var2 = var1.LoopFrame();
+       var0.LoopFrame(4);
+@@ -163,7 +163,7 @@ class CTitle {
+       do {
+          Color var2 = new Color(var1 * 2 + 40, var1 * 2 + 40, 255);
+          var0.m_OffsGraph.setColor(var2);
+-         var0.FillRect(0, var1 << 2, 400, 4);
++         var0.FillRect(0, Vari.Scale(var1 << 2), var0.m_nWidth, Vari.Scale(4));
+          ++var1;
+       } while(var1 < 80);
+ 
+@@ -171,19 +171,19 @@ class CTitle {
+ 
+    public static void TextSc_03() {
+       Vari.m_App.m_OffsGraph.setColor(Color.black);
+-      Vari.m_App.FillRect(0, 0, 400, 320);
++      Vari.m_App.FillRect(0, 0, Vari.m_App.m_nWidth, Vari.m_App.m_nHeight);
+       Vari.m_App.WaitRepaint(200);
+-      OnText("第３部", 200, 80, 32, 8);
++      OnText("第３部", Vari.m_App.m_nCenterX, Vari.Scale(80), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+-      OnText("メロンが食べたい", 200, 120, 32, 8);
++      OnText("メロンが食べたい", Vari.m_App.m_nCenterX, Vari.Scale(120), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+-      OnText("－黄金なる遺産－", 240, 250, 20, 8);
++      OnText("－黄金なる遺産－", Vari.Scale(240), Vari.Scale(250), Vari.Scale(20), 8);
+       Vari.m_App.WaitRepaint(3000);
+-      OffText("第３部", 200, 80, 32, 8);
++      OffText("第３部", Vari.m_App.m_nCenterX, Vari.Scale(80), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+-      OffText("メロンが食べたい", 200, 120, 32, 8);
++      OffText("メロンが食べたい", Vari.m_App.m_nCenterX, Vari.Scale(120), Vari.Scale(32), 8);
+       Vari.m_App.WaitRepaint(200);
+-      OffText("－黄金なる遺産－", 240, 250, 20, 8);
++      OffText("－黄金なる遺産－", Vari.Scale(240), Vari.Scale(250), Vari.Scale(20), 8);
+       Vari.m_App.WaitRepaint(200);
+    }
+ 
+diff --git a/src/CToolShop.java b/src/CToolShop.java
+index 80674e5..88321a9 100644
+--- a/src/CToolShop.java
++++ b/src/CToolShop.java
+@@ -89,7 +89,7 @@ class CToolShop extends CBaseShop {
+       } else {
+          this.CreateSellList();
+          super.m_App.EntryWindow(this.m_SellList);
+-         this.m_SellList.OpenWindow(8, 8);
++         this.m_SellList.OpenWindow(Vari.Scale(8), Vari.Scale(8));
+          this.m_Help.OpenWindow();
+          this.m_PrmW.CountOff();
+          this.m_PrmW.OpenWindow();
+@@ -129,7 +129,7 @@ class CToolShop extends CBaseShop {
+       super.m_App.EntryWindow(this.m_Menu);
+       super.m_App.EntryWindow(this.m_ListMenu);
+       super.m_App.OpenMoneyWindow();
+-      this.m_Help.Create(super.m_App, 188);
++      this.m_Help.Create(super.m_App, Vari.Scale(188));
+       super.m_App.EntryWindow(this.m_Help);
+       this.m_PrmW.Create(super.m_App);
+       super.m_App.EntryWindow(this.m_PrmW);
+@@ -239,7 +239,7 @@ class CToolShop extends CBaseShop {
+    }
+ 
+    public void BuyMain() {
+-      this.m_ListMenu.OpenWindow(8, 8);
++      this.m_ListMenu.OpenWindow(Vari.Scale(8), Vari.Scale(8));
+       this.m_Help.OpenWindow();
+       this.m_PrmW.CountOn();
+       this.m_PrmW.OpenWindow();
+@@ -263,7 +263,7 @@ class CToolShop extends CBaseShop {
+       int var1 = 2;
+       this.m_Menu.ResetFlag(2);
+       if (this.m_Menu.GetMode() == 0) {
+-         this.m_Menu.OpenWindow(296, 48);
++         this.m_Menu.OpenWindow(Vari.Scale(296), Vari.Scale(48));
+          super.m_App.LoopFrame(4);
+       }
+ 
+diff --git a/src/CUseItemList.java b/src/CUseItemList.java
+index 388f0ee..a97ce67 100644
+--- a/src/CUseItemList.java
++++ b/src/CUseItemList.java
+@@ -38,7 +38,7 @@ class CUseItemList extends CBaseItemList {
+ 
+    public boolean ExecItem(int var1) {
+       CUseDrop var2 = new CUseDrop();
+-      var2.Create(super.m_App, 80, var1 * 24 + 24);
++      var2.Create(super.m_App, Vari.Scale(80), Vari.Scale(var1 * 24 + 24));
+       int var3 = var2.Run();
+       if (var3 == 0) {
+          this.UseItem(var1);
+@@ -114,7 +114,7 @@ class CUseItemList extends CBaseItemList {
+    }
+ 
+    CUseItemList() {
+-      this.SetHelpYPos(228);
++      this.SetHelpYPos(Vari.Scale(228));
+    }
+ 
+    public void UseItem(int var1) {
+diff --git a/src/CUseSkillList.java b/src/CUseSkillList.java
+index 5dfb4cd..d46cfb6 100644
+--- a/src/CUseSkillList.java
++++ b/src/CUseSkillList.java
+@@ -232,7 +232,7 @@ class CUseSkillList extends CMenuWindow {
+ 
+    private void Open() {
+       this.MakeList();
+-      Vari.m_Help.Create(this.m_App, 228);
++      Vari.m_Help.Create(this.m_App, Vari.Scale(228));
+       this.m_App.EntryWindow(this);
+       this.m_App.EntryWindow(Vari.m_Help);
+       this.OpenWindow(this.m_nXPos, this.m_nYPos);
+diff --git a/src/CWinEntry.java b/src/CWinEntry.java
+index ecd0676..82d84e1 100644
+--- a/src/CWinEntry.java
++++ b/src/CWinEntry.java
+@@ -16,7 +16,7 @@ class CWinEntry extends CGameApp {
+          CTextObj var1 = this.m_aTextObj[var2];
+          if (var1.Move()) {
+             D3DXVECTOR3 var3 = super.m_Render.Get3DPosBW(var1.m_vPos);
+-            this.DrawFontCF((int)var3.x, (int)var3.y + var1.GetYAdd(), var1.m_strText, 16, var1.m_Color);
++            this.DrawFontCF((int)var3.x, (int)var3.y + var1.GetYAdd(), var1.m_strText, Vari.Scale(16), var1.m_Color);
+          }
+ 
+          ++var4;
+diff --git a/src/CWindow.java b/src/CWindow.java
+index 1b37097..bfd9cee 100644
+--- a/src/CWindow.java
++++ b/src/CWindow.java
+@@ -35,7 +35,7 @@ class CWindow extends CFlag {
+    private boolean m_bRelease;
+ 
+    public int GetHeight_Text(int var1) {
+-      return 16 + 16 * var1 + 8 * (var1 - 1);
++      return Vari.Scale(16 + 16 * var1 + 8 * (var1 - 1));
+    }
+ 
+    public void _Create(CWinEntry var1, Color var2, int var3, int var4, int var5) {
+@@ -88,34 +88,42 @@ class CWindow extends CFlag {
+          Color var4;
+          if (this.GetFlag(16)) {
+             var1 = this.m_nPosX;
+-            var2 = this.m_nPosY + (this.m_nHeight - 32 >> 1);
+-            var3 = 16;
++            var2 = this.m_nPosY + (this.m_nHeight - Vari.Scale(32) >> 1);
++            var3 = (byte)Vari.Scale(16);
+             var4 = ARROWCOL_NORMAL;
+-            if (this.m_GameApp.m_nMouseX >= var1 - var3 && this.m_GameApp.m_nMouseX < var1 + 32 - var3 && this.m_GameApp.m_nMouseY >= var2 && this.m_GameApp.m_nMouseY < var2 + 32) {
++            if (this.m_GameApp.m_nMouseX >= var1 - var3
++               && this.m_GameApp.m_nMouseX < var1 + Vari.Scale(32) - var3
++               && this.m_GameApp.m_nMouseY >= var2
++               && this.m_GameApp.m_nMouseY < var2 + Vari.Scale(32)
++            ) {
+                this.SetFlag(64);
+                var4 = ARROWCOL_SELECT;
+             } else {
+                this.ResetFlag(64);
+             }
+ 
+-            this.m_GameApp.DrawFontC(var1 - 1, var2, "≪", 32, Color.black);
+-            this.m_GameApp.DrawFontC(var1, var2, "≪", 32, var4);
++            this.m_GameApp.DrawFontC(var1 - 1, var2, "≪", Vari.Scale(32), Color.black);
++            this.m_GameApp.DrawFontC(var1, var2, "≪", Vari.Scale(32), var4);
+          }
+ 
+          if (this.GetFlag(32)) {
+             var1 = this.m_nPosX + this.m_nWidth;
+-            var2 = this.m_nPosY + (this.m_nHeight - 32 >> 1);
+-            var3 = 16;
++            var2 = this.m_nPosY + (this.m_nHeight - Vari.Scale(32) >> 1);
++            var3 = (byte)Vari.Scale(16);
+             var4 = ARROWCOL_NORMAL;
+-            if (this.m_GameApp.m_nMouseX >= var1 - var3 && this.m_GameApp.m_nMouseX < var1 + 32 - var3 && this.m_GameApp.m_nMouseY >= var2 && this.m_GameApp.m_nMouseY < var2 + 32) {
++            if (this.m_GameApp.m_nMouseX >= var1 - var3
++               && this.m_GameApp.m_nMouseX < var1 + Vari.Scale(32) - var3
++               && this.m_GameApp.m_nMouseY >= var2
++               && this.m_GameApp.m_nMouseY < var2 + Vari.Scale(32)
++            ) {
+                this.SetFlag(128);
+                var4 = ARROWCOL_SELECT;
+             } else {
+                this.ResetFlag(128);
+             }
+ 
+-            this.m_GameApp.DrawFontC(var1 + 1, var2, "≫", 32, Color.black);
+-            this.m_GameApp.DrawFontC(var1, var2, "≫", 32, var4);
++            this.m_GameApp.DrawFontC(var1 + 1, var2, "≫", Vari.Scale(32), Color.black);
++            this.m_GameApp.DrawFontC(var1, var2, "≫", Vari.Scale(32), var4);
+          }
+ 
+       }
+@@ -147,7 +155,7 @@ class CWindow extends CFlag {
+    }
+ 
+    public int GetXPos(int var1) {
+-      return 8 + 16 * var1;
++      return Vari.Scale(8 + 16 * var1);
+    }
+ 
+    public int GetYPos() {
+@@ -155,11 +163,14 @@ class CWindow extends CFlag {
+    }
+ 
+    public int GetYPos(int var1) {
+-      return 8 + 24 * var1;
++      return Vari.Scale(8 + 24 * var1);
+    }
+ 
+    public boolean IsMouseIn() {
+-      return this.m_GameApp.m_nMouseX >= this.m_nPosX + 8 && this.m_GameApp.m_nMouseX < this.m_nPosX + this.m_nWidth + 8 && this.m_GameApp.m_nMouseY >= this.m_nPosY + 8 && this.m_GameApp.m_nMouseY < this.m_nPosY + this.m_nHeight + 8;
++      return this.m_GameApp.m_nMouseX >= this.m_nPosX + Vari.Scale(8)
++         && this.m_GameApp.m_nMouseX < this.m_nPosX + this.m_nWidth + Vari.Scale(8)
++         && this.m_GameApp.m_nMouseY >= this.m_nPosY + Vari.Scale(8)
++         && this.m_GameApp.m_nMouseY < this.m_nPosY + this.m_nHeight + Vari.Scale(8);
+    }
+ 
+    public boolean IsLeft() {
+@@ -265,6 +276,6 @@ class CWindow extends CFlag {
+    }
+ 
+    public int GetWidth_Text(int var1) {
+-      return 16 + 16 * var1;
++      return Vari.Scale(16 + 16 * var1);
+    }
+ }
+diff --git a/src/CWorldMap.java b/src/CWorldMap.java
+index 523b25c..8f8e897 100644
+--- a/src/CWorldMap.java
++++ b/src/CWorldMap.java
+@@ -15,7 +15,9 @@ class CWorldMap extends CWindow {
+    }
+ 
+    public void Draw() {
+-      this.m_App.DrawImage(31, 44, 14);
++      int imageX = Vari.Scale(44);
++      int imageY = Vari.Scale(14);
++      this.m_App.DrawImage(31, imageX, imageY);
+       int var1 = -1;
+       int var2 = -1;
+       int var3 = -1;
+@@ -39,14 +41,14 @@ class CWorldMap extends CWindow {
+          var5 = ((this.m_App.m_nMainCount & 4) >> 2) * 3;
+          var6 = new Color(this.m_anPointColor[var5 + 0], this.m_anPointColor[var5 + 1], this.m_anPointColor[var5 + 2]);
+          this.m_App.m_OffsGraph.setColor(var6);
+-         this.m_App.m_OffsGraph.fillRect(60 + var1 * 4, 30 + var2 * 4, 4, 4);
++         this.m_App.m_OffsGraph.fillRect(imageX + 16 + var1 * 4, imageY + 16 + var2 * 4, 4, 4);
+       }
+ 
+       if (var3 != -1) {
+          var5 = ((this.m_App.m_nMainCount & 4) >> 2) * 3;
+          var6 = new Color(this.m_anPointColor[var5 + 6], this.m_anPointColor[var5 + 7], this.m_anPointColor[var5 + 8]);
+          this.m_App.m_OffsGraph.setColor(var6);
+-         this.m_App.m_OffsGraph.fillRect(60 + var3 * 4, 30 + var4 * 4, 4, 4);
++         this.m_App.m_OffsGraph.fillRect(imageX + 16 + var3 * 4, imageY + 16 + var4 * 4, 4, 4);
+       }
+ 
+    }
+diff --git a/src/Vari.java b/src/Vari.java
+index d65c8b4..99596f7 100644
+--- a/src/Vari.java
++++ b/src/Vari.java
+@@ -38,6 +38,9 @@ class Vari {
+    public static boolean m_bTitle;
+    public static boolean m_bSkillWin;
+ 
++   // The following fields were added by an unofficial patch.
++   public static boolean m_bTopDownView;
++
+    public static boolean IsStopWorld() {
+       return m_nWorldCount > 0;
+    }
+@@ -204,4 +207,15 @@ class Vari {
+       m_nWorldCount = 0;
+       m_nWorldChr = -1;
+    }
++
++   /**
++    * Returns the given number multiplied by the scale factor of the applet. Wrapping a hard-coded constant in this
++    * method allows it to be scalable to the size of the applet.
++    *
++    * @param x The number to be multiplied by the scale factor.
++    * @return The product of the given number and scale factor.
++    */
++   public static int Scale(float x) {
++      return (int)(x * Vari.m_App.m_fScale);
++   }
+ }
