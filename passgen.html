@@ -1,9 +1,13 @@
 <!DOCTYPE html>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>すいかが食べたい復活の呪文生成解読器</title>
-<link rel="license" href="https://creativecommons.org/publicdomain/zero/1.0/">
-<pre>
+  <head>
+    <meta charset="UTF-8">
+    <meta name='color-scheme' content='light dark'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>すいかが食べたい復活の呪文生成解読器</title>
+    <link rel="license" href="https://creativecommons.org/publicdomain/zero/1.0/">
+  </head>
+  <body>
+    <pre>
 <textarea id="password" cols="53" rows="6">
 K3tnjXZqPhFpf0wUo6lQRQDeCQ+5qrAbVEkmBcLmBSsSZ5LqFg-WE
 wM8lA3p9MPZESENtO58dQqo3bwLlpL8UKQKRYX0AxOfVwP6CcsSEU
@@ -370,480 +374,482 @@ MP:<input id="mp2" class="mp">
 299 宇宙第9層(赤仙人)
 </small>
 </pre>
-<script>
-  var PASSWORD_CHARACTERS = [
-    "K", "s", "G", "T", "f", "-", "n", "v", "C", "O",
-    "p", "B", "8", "D", "x", "F", "2", "H", "I", "J",
-    "0", "L", "k", "N", "9", "P", "Q", "R", "S", "3",
-    "b", "V", "W", "z", "Y", "Z", "a", "U", "c", "d",
-    "e", "4", "g", "h", "i", "j", "M", "l", "m", "6",
-    "o", "A", "q", "r", "1", "t", "u", "7", "w", "E",
-    "y", "X", "5", "+"
-  ];
-
-  var NAME_CHARACTERS = [
-    "あ", "い", "う", "え", "お", "-", "は", "ひ", "ふ", "へ",
-    "ほ", "-", "D", "か", "き", "く", "け", "こ", "-", "ま",
-    "み", "む", "め", "も", "-", "[←]", "さ", "し", "す", "せ",
-    "そ", "-", "や", "\u3000", "ゆ", "\u3000", "よ", "-", "D", "た",
-    "ち", "つ", "て", "と", "-", "ら", "り", "る", "れ", "ろ",
-    "-", "[→]", "な", "に", "ぬ", "ね", "の", "-", "わ", "\u3000",
-    "を", "\u3000", "ん", "-", "U", "ぁ", "ぃ", "ぅ", "ぇ", "ぉ",
-    "-", "っ", "ゃ", "ゅ", "ょ", "-", "-", "D", "が", "ぎ",
-    "ぐ", "げ", "ご", "-", "ぱ", "ぴ", "ぷ", "ぺ", "ぽ", "-",
-    "[削除]", "ざ", "じ", "ず", "ぜ", "ぞ", "-", "ば", "び", "ぶ",
-    "べ", "ぼ", "-", "D", "だ", "ぢ", "づ", "で", "ど", "-",
-    "ー", "！", "？", "＠", "＿", "-", "[決定]", "西", "瓜", "太",
-    "郎"
-  ];
-
-  var ITEMS = [
-    "", "いちご", "みかん", "りんご", "ツナ缶", "サバ缶", "カニ缶", "解毒剤", "奇跡の雫", "世界地図",
-    "空の手", "たいまつ", "すいかサブレ", "陰陽師サブレ", "狂乱の魔石", "時間の魔石", "生命の魔石", "鎌鼬の魔石", "賢者の魔石", "重力の魔石",
-    "短剣「無銘」", "短剣「会心」", "短剣「猫目」", "短剣「盗賊」", "短剣「旋風」", "短剣「金剛」", "短剣「侍魂」", "短剣「白猿」", "短剣「死神」", "短剣「奇跡」",
-    "長剣「無銘」", "長剣「白蛇」", "長剣「虎王」", "長剣「キバ」", "長剣「飛爪」", "長剣「金剛」", "長剣「破壊」", "長剣「白竜」", "長剣「希望」", "長剣「絶望」",
-    "杖「無銘」", "杖「八角」", "杖「燃火」", "杖「乱心」", "杖「束縛」", "杖「精神」", "杖「苦痛」", "杖「業火」", "杖「魔月」", "杖「宇宙」",
-    "布の服", "冒険者の服", "絹の服", "魔導の服", "隼の服", "毛皮のコート", "盗賊の服", "魔銀の服", "加護の衣", "兎神の服",
-    "皮の鎧", "銅の鎧", "鎖かたびら", "鉄の鎧", "鋼の鎧", "金剛の鎧", "風神の鎧", "大地の鎧", "勇者の鎧", "無限の鎧",
-    "木の盾", "皮の盾", "銅の盾", "鉄の盾", "魔法の盾", "戦士の盾", "水鏡の盾", "無限の盾", "兎戦士の盾", "誓約の盾",
-    "皮の手袋", "銅の手袋", "鉄の手袋", "火鼠の手袋", "純白の手袋", "風霊の手袋", "幻想の手袋", "鉄爪の手袋", "聖者の手袋", "体力の指輪",
-    "会心の指輪", "耐火の指輪", "耐風の指輪", "耐聖の指輪", "毒無効の指輪", "停止無効の指輪", "即死無効の指輪", "混乱無効の指輪", "施錠無効の指輪", "回復の指輪",
-    "魚の骨", "兎の足", "亀の甲羅", "虎の牙", "盗賊の指", "隼の翼", "知識の帽子", "デブの脂肪", "竜の瞳", "幸せの靴",
-    "冒険者の勾玉", "剣士の勾玉", "武闘の勾玉", "盗賊の勾玉", "陰陽師の勾玉", "道具士の勾玉", "魔物の勾玉", "巫女の勾玉", "詩人の勾玉", "忍者の勾玉",
-    "すいか様の勾玉", "大陰陽の勾玉", "格闘王の勾玉", "剣豪の勾玉", "神官の勾玉", "兎神の勾玉", "勇者の勾玉", "ペンキ", "竜の玉", "竜の小玉",
-    "不思議な石版Ａ", "不思議な石版Ｂ", "不思議な石版Ｃ", "不思議な石版Ｄ", "不思議な石版Ｅ", "青い宝珠", "赤い宝珠", "冒険者の勇気", "小さなコイン", "小さなコイン",
-    "さるの置物", "白猿の毛", "唄う小石", "手袋の御魂", "月の精霊石", "星の涙", "絶望の瞳", "盗賊の鍵", "世界の鍵", "黒翡翠の種"
-  ];
-
-  var ABILITIES = [
-    "ＨＰ＋１５％", "ＨＰ＋３０％", "ＭＰ＋１５％", "ＭＰ＋３０％", "攻撃力＋１５％", "攻撃力＋３０％", "精神力＋１５％", "精神力＋３０％", "防御力＋１５％", "防御力＋３０％",
-    "素早さ＋１５％", "素早さ＋３０％", "器用さ＋１５％", "器用さ＋３０％", "獲得ＥＸ＋３０％", "獲得ＡＰ＋３０％", "防御", "手当て", "応援", "石つぶて",
-    "体当たり", "おたけび", "乱２撃", "チャクラ", "大防御", "界王拳", "会心の一撃", "停止剣", "２連撃", "高揚斬",
-    "駿速剣", "旋風舞", "ひよこ斬", "死神の剣", "吸血剣", "光の剣", "究極の一撃", "下がり斬", "下がり一閃", "燃火符",
-    "幸運符", "瘴気符", "鎌鼬符", "闇渦符", "凍結符", "乱心符", "雷鳴符", "黄泉符", "竜巻符", "呪詛符",
-    "恩恵", "解毒", "加護", "麻痺", "纏水", "蘇生", "目薬", "祝福", "光子", "奇跡",
-    "開錠", "世界", "氷斬破", "雷斬破", "リジェーネ", "すいか様", "ゴーレム", "バハムート", "縛り糸", "吸血",
-    "毒牙", "沸きひよこ", "白の風", "炎の息", "毒の息", "乱４撃", "大吸血", "チョベリバ", "灼熱フレア", "メテオ",
-    "アルティマ", "うな玉拳", "勇気の唄", "侵食の唄", "覚醒の唄", "風護の唄", "寛ぎの唄", "ぱるぷん唄", "猫の目", "忍び足",
-    "空の手", "停止無効", "毒無効", "混乱無効", "即死無効", "クローズ無効", "戦闘中ＨＰ回復", "戦闘中ＭＰ回復", "火属性１／２", "氷属性１／２",
-    "風属性１／２", "聖属性１／２", "レアアイテムＵＰ", "獲得金ＵＰ", "薬の知識", "盗みの知識", "すいかの星", "消費ＭＰ２／３", "常に加護", "反撃",
-    "剣技発動ＵＰ", "剣技コンボ", "殴焦火", "殴麻痺", "殴混乱", "ペイン", "西瓜属性吸収", "火に強い", "氷に強い", "風に強い",
-    "雷に強い", "聖に強い", "火に弱い", "氷に弱い", "風に弱い", "雷に弱い", "聖に弱い", "火属性吸収", "氷属性吸収", "風属性吸収",
-    "雷属性吸収", "聖属性吸収", "魔法無効", "ボスフラグ", "凝固の瞳", "溜める", "兄弟の絆連撃", "停止剣の舞", "メタル", "逃げる",
-    "うな護り", "スパイラルミンチ", "スパイラルクロー", "女神レーザー", "グラビーガ", "ケアルーガ", "おさるインパクト", "ペイン", "クローズ", "助っ人",
-    "ＭＰ分配", "一閃", "乱８撃", "アレイーズ", "炎連弾", "目つぶし", "無敵", "止まる息", "吸い尽くす", "光の鍵",
-    "３つの首", "さるメタル", "さる斬り", "ものまね", "四閃", "火の赤", "氷の青", "風の緑", "雷の黄", "究極の火",
-    "究極の氷", "究極の風", "究極の雷", "ホップステップ", "剣を纏う", "絶対零度", "放電", "空へ駆ける", "コスモトリップ", "いかつく波動",
-    "世界無効", "無理無理無理", "石化の瞳", "反撃チョベリバ", "反撃ケアルーガ", "光の矢雨", "超チョベリバ", "会心の２連撃", "ひよこ停止剣", "駿速旋風舞",
-    "吸血高揚斬", "メカレーザー", "常にゴーレム", "すいかメテオ", "究極の死神剣", "流星群", "チョベリ斬", "ナイトメア", "滅殺符", "５連アルティマ",
-    "超ガード", "エスーナ", "メロンメテオ", "４霊斬", "無限のスイカ", "スイカリオン", "瞬連撃", "メロニア落とし", "大大吸血", "白夜"
-  ];
-
-  var BATTLE_COMMANDS = ["", "たたかう", "アイテム", "盗む", "ぶんどる", "特技", "神官魔法", "陰陽術", "連陰陽", "敵の技", "逃げる", "唄", "西瓜魔法"];
-
-  function $(id) { return document.getElementById(id) }
-
-  var offset;
-
-  ($("password").onchange = function () {
-    var pass = $("password").value.replace(/\n/g, "").split("");
-    var salt = pass[0];
-    offset = PASSWORD_CHARACTERS.indexOf(salt);
-
-    pass = pass.map(function (c, i) {
-      return (PASSWORD_CHARACTERS.indexOf(c) - offset - i * 27) & 0x3f;
-    });
-
-    function ReadWord(i) {
-      return (pass[i] << 6) + pass[i + 1];
-    }
-
-    $("name").value = "";
-
-    for (var i = 2; i <= 8; i += 2) {
-      $("name").value += NAME_CHARACTERS[ReadWord(i)];
-    }
-
-    $("area").value = ReadWord(10);
-
-    $("pos").value = [
-      ReadWord(12),
-      ReadWord(14),
-      pass[16],
-    ].join(",");
-
-    $("gold").value =
-      pass[17] * 262144 +
-      pass[18] * 4096 +
-      pass[19] * 64 +
-      pass[20];
-
-    $("time").value = [
-      pass[26] * 64 + pass[21],
-      pass[22],
-      pass[23],
-    ].join(":");
-
-    $("ship").value = [
-      ReadWord(24),
-      pass[27],
-      pass[28],
-    ].join(",");
-
-    function GetFlag(flag, n) {
-      var i = 1 << n % 6;
-      return (flag[Math.floor(n / 6)] & i) !== 0;
-    }
-
-    for (var i = 0; i < 3; i++) {
-      var n = 29 + i * 45;
-
-      $("exp" + i).value =
-        pass[n] * 262144 +
-        pass[n + 1] * 4096 +
-        pass[n + 2] * 64 +
-        pass[n + 3];
-
-      $("ap" + i).value =
-        pass[n + 4] * 64 +
-        pass[n + 5];
-
-      function Pass2Equip(n, m) {
-        return n === 63 ? -1 : n + m;
-      }
-
-      $("gem" + i).value = ITEMS[Pass2Equip(pass[n + 6], 110)] || "";
-
-      var gemFlag = [
-        pass[n + 7],
-        pass[n + 8],
-        pass[n + 9],
+    <script>
+      var PASSWORD_CHARACTERS = [
+        "K", "s", "G", "T", "f", "-", "n", "v", "C", "O",
+        "p", "B", "8", "D", "x", "F", "2", "H", "I", "J",
+        "0", "L", "k", "N", "9", "P", "Q", "R", "S", "3",
+        "b", "V", "W", "z", "Y", "Z", "a", "U", "c", "d",
+        "e", "4", "g", "h", "i", "j", "M", "l", "m", "6",
+        "o", "A", "q", "r", "1", "t", "u", "7", "w", "E",
+        "y", "X", "5", "+"
       ];
 
-      var learnedGems = [];
-
-      for (var j = 0; j < 17; j++) {
-        if (GetFlag(gemFlag, j)) {
-          learnedGems.push(ITEMS[110 + j]);
-        }
-      }
-
-      $("learned-gems" + i).value = learnedGems.join("\n");
-
-      var equip = [];
-
-      for (var j = 10; j <= 14; j++) {
-        equip.push(ITEMS[Pass2Equip(pass[n + j], [20, 50, 70, 89, 89][j - 10])]);
-      }
-
-      $("equip" + i).value = equip.join("\n");
-
-      var abiFlag = [];
-
-      for (var j = 15; j <= 33; j++) {
-        abiFlag.push(pass[n + j]);
-      }
-
-      var abi = [];
-
-      for (var j = 0; j < 114; j++) {
-        if (GetFlag(abiFlag, j)) {
-          abi.push(ABILITIES[j]);
-        }
-      }
-
-      $("abi" + i).value = abi.join("\n");
-
-      function GetBattleCommand(n, m) {
-        return n === 0 && m === 6 ? BATTLE_COMMANDS[12] : BATTLE_COMMANDS[m];
-      }
-
-      var cmdAbFlag = [
-        pass[n + 34],
-        pass[n + 35],
+      var NAME_CHARACTERS = [
+        "あ", "い", "う", "え", "お", "-", "は", "ひ", "ふ", "へ",
+        "ほ", "-", "D", "か", "き", "く", "け", "こ", "-", "ま",
+        "み", "む", "め", "も", "-", "[←]", "さ", "し", "す", "せ",
+        "そ", "-", "や", "\u3000", "ゆ", "\u3000", "よ", "-", "D", "た",
+        "ち", "つ", "て", "と", "-", "ら", "り", "る", "れ", "ろ",
+        "-", "[→]", "な", "に", "ぬ", "ね", "の", "-", "わ", "\u3000",
+        "を", "\u3000", "ん", "-", "U", "ぁ", "ぃ", "ぅ", "ぇ", "ぉ",
+        "-", "っ", "ゃ", "ゅ", "ょ", "-", "-", "D", "が", "ぎ",
+        "ぐ", "げ", "ご", "-", "ぱ", "ぴ", "ぷ", "ぺ", "ぽ", "-",
+        "[削除]", "ざ", "じ", "ず", "ぜ", "ぞ", "-", "ば", "び", "ぶ",
+        "べ", "ぼ", "-", "D", "だ", "ぢ", "づ", "で", "ど", "-",
+        "ー", "！", "？", "＠", "＿", "-", "[決定]", "西", "瓜", "太",
+        "郎"
       ];
 
-      var learnedCmdAb = [];
+      var ITEMS = [
+        "", "いちご", "みかん", "りんご", "ツナ缶", "サバ缶", "カニ缶", "解毒剤", "奇跡の雫", "世界地図",
+        "空の手", "たいまつ", "すいかサブレ", "陰陽師サブレ", "狂乱の魔石", "時間の魔石", "生命の魔石", "鎌鼬の魔石", "賢者の魔石", "重力の魔石",
+        "短剣「無銘」", "短剣「会心」", "短剣「猫目」", "短剣「盗賊」", "短剣「旋風」", "短剣「金剛」", "短剣「侍魂」", "短剣「白猿」", "短剣「死神」", "短剣「奇跡」",
+        "長剣「無銘」", "長剣「白蛇」", "長剣「虎王」", "長剣「キバ」", "長剣「飛爪」", "長剣「金剛」", "長剣「破壊」", "長剣「白竜」", "長剣「希望」", "長剣「絶望」",
+        "杖「無銘」", "杖「八角」", "杖「燃火」", "杖「乱心」", "杖「束縛」", "杖「精神」", "杖「苦痛」", "杖「業火」", "杖「魔月」", "杖「宇宙」",
+        "布の服", "冒険者の服", "絹の服", "魔導の服", "隼の服", "毛皮のコート", "盗賊の服", "魔銀の服", "加護の衣", "兎神の服",
+        "皮の鎧", "銅の鎧", "鎖かたびら", "鉄の鎧", "鋼の鎧", "金剛の鎧", "風神の鎧", "大地の鎧", "勇者の鎧", "無限の鎧",
+        "木の盾", "皮の盾", "銅の盾", "鉄の盾", "魔法の盾", "戦士の盾", "水鏡の盾", "無限の盾", "兎戦士の盾", "誓約の盾",
+        "皮の手袋", "銅の手袋", "鉄の手袋", "火鼠の手袋", "純白の手袋", "風霊の手袋", "幻想の手袋", "鉄爪の手袋", "聖者の手袋", "体力の指輪",
+        "会心の指輪", "耐火の指輪", "耐風の指輪", "耐聖の指輪", "毒無効の指輪", "停止無効の指輪", "即死無効の指輪", "混乱無効の指輪", "施錠無効の指輪", "回復の指輪",
+        "魚の骨", "兎の足", "亀の甲羅", "虎の牙", "盗賊の指", "隼の翼", "知識の帽子", "デブの脂肪", "竜の瞳", "幸せの靴",
+        "冒険者の勾玉", "剣士の勾玉", "武闘の勾玉", "盗賊の勾玉", "陰陽師の勾玉", "道具士の勾玉", "魔物の勾玉", "巫女の勾玉", "詩人の勾玉", "忍者の勾玉",
+        "すいか様の勾玉", "大陰陽の勾玉", "格闘王の勾玉", "剣豪の勾玉", "神官の勾玉", "兎神の勾玉", "勇者の勾玉", "ペンキ", "竜の玉", "竜の小玉",
+        "不思議な石版Ａ", "不思議な石版Ｂ", "不思議な石版Ｃ", "不思議な石版Ｄ", "不思議な石版Ｅ", "青い宝珠", "赤い宝珠", "冒険者の勇気", "小さなコイン", "小さなコイン",
+        "さるの置物", "白猿の毛", "唄う小石", "手袋の御魂", "月の精霊石", "星の涙", "絶望の瞳", "盗賊の鍵", "世界の鍵", "黒翡翠の種"
+      ];
 
-      for (var j = 0; j < 12; j++) {
-        if (GetFlag(cmdAbFlag, j)) {
-          learnedCmdAb.push(GetBattleCommand(i, j));
+      var ABILITIES = [
+        "ＨＰ＋１５％", "ＨＰ＋３０％", "ＭＰ＋１５％", "ＭＰ＋３０％", "攻撃力＋１５％", "攻撃力＋３０％", "精神力＋１５％", "精神力＋３０％", "防御力＋１５％", "防御力＋３０％",
+        "素早さ＋１５％", "素早さ＋３０％", "器用さ＋１５％", "器用さ＋３０％", "獲得ＥＸ＋３０％", "獲得ＡＰ＋３０％", "防御", "手当て", "応援", "石つぶて",
+        "体当たり", "おたけび", "乱２撃", "チャクラ", "大防御", "界王拳", "会心の一撃", "停止剣", "２連撃", "高揚斬",
+        "駿速剣", "旋風舞", "ひよこ斬", "死神の剣", "吸血剣", "光の剣", "究極の一撃", "下がり斬", "下がり一閃", "燃火符",
+        "幸運符", "瘴気符", "鎌鼬符", "闇渦符", "凍結符", "乱心符", "雷鳴符", "黄泉符", "竜巻符", "呪詛符",
+        "恩恵", "解毒", "加護", "麻痺", "纏水", "蘇生", "目薬", "祝福", "光子", "奇跡",
+        "開錠", "世界", "氷斬破", "雷斬破", "リジェーネ", "すいか様", "ゴーレム", "バハムート", "縛り糸", "吸血",
+        "毒牙", "沸きひよこ", "白の風", "炎の息", "毒の息", "乱４撃", "大吸血", "チョベリバ", "灼熱フレア", "メテオ",
+        "アルティマ", "うな玉拳", "勇気の唄", "侵食の唄", "覚醒の唄", "風護の唄", "寛ぎの唄", "ぱるぷん唄", "猫の目", "忍び足",
+        "空の手", "停止無効", "毒無効", "混乱無効", "即死無効", "クローズ無効", "戦闘中ＨＰ回復", "戦闘中ＭＰ回復", "火属性１／２", "氷属性１／２",
+        "風属性１／２", "聖属性１／２", "レアアイテムＵＰ", "獲得金ＵＰ", "薬の知識", "盗みの知識", "すいかの星", "消費ＭＰ２／３", "常に加護", "反撃",
+        "剣技発動ＵＰ", "剣技コンボ", "殴焦火", "殴麻痺", "殴混乱", "ペイン", "西瓜属性吸収", "火に強い", "氷に強い", "風に強い",
+        "雷に強い", "聖に強い", "火に弱い", "氷に弱い", "風に弱い", "雷に弱い", "聖に弱い", "火属性吸収", "氷属性吸収", "風属性吸収",
+        "雷属性吸収", "聖属性吸収", "魔法無効", "ボスフラグ", "凝固の瞳", "溜める", "兄弟の絆連撃", "停止剣の舞", "メタル", "逃げる",
+        "うな護り", "スパイラルミンチ", "スパイラルクロー", "女神レーザー", "グラビーガ", "ケアルーガ", "おさるインパクト", "ペイン", "クローズ", "助っ人",
+        "ＭＰ分配", "一閃", "乱８撃", "アレイーズ", "炎連弾", "目つぶし", "無敵", "止まる息", "吸い尽くす", "光の鍵",
+        "３つの首", "さるメタル", "さる斬り", "ものまね", "四閃", "火の赤", "氷の青", "風の緑", "雷の黄", "究極の火",
+        "究極の氷", "究極の風", "究極の雷", "ホップステップ", "剣を纏う", "絶対零度", "放電", "空へ駆ける", "コスモトリップ", "いかつく波動",
+        "世界無効", "無理無理無理", "石化の瞳", "反撃チョベリバ", "反撃ケアルーガ", "光の矢雨", "超チョベリバ", "会心の２連撃", "ひよこ停止剣", "駿速旋風舞",
+        "吸血高揚斬", "メカレーザー", "常にゴーレム", "すいかメテオ", "究極の死神剣", "流星群", "チョベリ斬", "ナイトメア", "滅殺符", "５連アルティマ",
+        "超ガード", "エスーナ", "メロンメテオ", "４霊斬", "無限のスイカ", "スイカリオン", "瞬連撃", "メロニア落とし", "大大吸血", "白夜"
+      ];
+
+      var BATTLE_COMMANDS = ["", "たたかう", "アイテム", "盗む", "ぶんどる", "特技", "神官魔法", "陰陽術", "連陰陽", "敵の技", "逃げる", "唄", "西瓜魔法"];
+
+      function $(id) { return document.getElementById(id) }
+
+      var offset;
+
+      ($("password").onchange = function () {
+        var pass = $("password").value.replace(/\n/g, "").split("");
+        var salt = pass[0];
+        offset = PASSWORD_CHARACTERS.indexOf(salt);
+
+        pass = pass.map(function (c, i) {
+          return (PASSWORD_CHARACTERS.indexOf(c) - offset - i * 27) & 0x3f;
+        });
+
+        function ReadWord(i) {
+          return (pass[i] << 6) + pass[i + 1];
         }
+
+        $("name").value = "";
+
+        for (var i = 2; i <= 8; i += 2) {
+          $("name").value += NAME_CHARACTERS[ReadWord(i)];
+        }
+
+        $("area").value = ReadWord(10);
+
+        $("pos").value = [
+          ReadWord(12),
+          ReadWord(14),
+          pass[16],
+        ].join(",");
+
+        $("gold").value =
+          pass[17] * 262144 +
+          pass[18] * 4096 +
+          pass[19] * 64 +
+          pass[20];
+
+        $("time").value = [
+          pass[26] * 64 + pass[21],
+          pass[22],
+          pass[23],
+        ].join(":");
+
+        $("ship").value = [
+          ReadWord(24),
+          pass[27],
+          pass[28],
+        ].join(",");
+
+        function GetFlag(flag, n) {
+          var i = 1 << n % 6;
+          return (flag[Math.floor(n / 6)] & i) !== 0;
+        }
+
+        for (var i = 0; i < 3; i++) {
+          var n = 29 + i * 45;
+
+          $("exp" + i).value =
+            pass[n] * 262144 +
+            pass[n + 1] * 4096 +
+            pass[n + 2] * 64 +
+            pass[n + 3];
+
+          $("ap" + i).value =
+            pass[n + 4] * 64 +
+            pass[n + 5];
+
+          function Pass2Equip(n, m) {
+            return n === 63 ? -1 : n + m;
+          }
+
+          $("gem" + i).value = ITEMS[Pass2Equip(pass[n + 6], 110)] || "";
+
+          var gemFlag = [
+            pass[n + 7],
+            pass[n + 8],
+            pass[n + 9],
+          ];
+
+          var learnedGems = [];
+
+          for (var j = 0; j < 17; j++) {
+            if (GetFlag(gemFlag, j)) {
+              learnedGems.push(ITEMS[110 + j]);
+            }
+          }
+
+          $("learned-gems" + i).value = learnedGems.join("\n");
+
+          var equip = [];
+
+          for (var j = 10; j <= 14; j++) {
+            equip.push(ITEMS[Pass2Equip(pass[n + j], [20, 50, 70, 89, 89][j - 10])]);
+          }
+
+          $("equip" + i).value = equip.join("\n");
+
+          var abiFlag = [];
+
+          for (var j = 15; j <= 33; j++) {
+            abiFlag.push(pass[n + j]);
+          }
+
+          var abi = [];
+
+          for (var j = 0; j < 114; j++) {
+            if (GetFlag(abiFlag, j)) {
+              abi.push(ABILITIES[j]);
+            }
+          }
+
+          $("abi" + i).value = abi.join("\n");
+
+          function GetBattleCommand(n, m) {
+            return n === 0 && m === 6 ? BATTLE_COMMANDS[12] : BATTLE_COMMANDS[m];
+          }
+
+          var cmdAbFlag = [
+            pass[n + 34],
+            pass[n + 35],
+          ];
+
+          var learnedCmdAb = [];
+
+          for (var j = 0; j < 12; j++) {
+            if (GetFlag(cmdAbFlag, j)) {
+              learnedCmdAb.push(GetBattleCommand(i, j));
+            }
+          }
+
+          $("learned-cmd-ab" + i).value = learnedCmdAb.join("\n");
+
+          var cmdAb = [];
+
+          for (var j = 36; j <= 39; j++) {
+            cmdAb.push(GetBattleCommand(i, pass[n + j]));
+          }
+
+          $("cmd-ab" + i).value = cmdAb.join("\n");
+
+          $("hp" + i).value =
+            pass[n + 40] * 4096 +
+            pass[n + 41] * 64 +
+            pass[n + 42];
+
+          $("mp" + i).value =
+            pass[n + 43] * 64 +
+            pass[n + 44];
+        }
+
+        n += 45;
+
+        var nItems = [];
+
+        for (var i = 0; i < 150; i += 3, n += 2) {
+          nItems[i] = pass[n] & 0xf;
+          nItems[i + 1] = (pass[n] >> 4) + (pass[n + 1] >> 4) * 4;
+          nItems[i + 2] = pass[n + 1] & 0xf;
+        }
+
+        $("items").value = ITEMS.map(function (item, i) {
+          if (nItems[i]) {
+            return item + "×" + nItems[i];
+          }
+        }).filter(function (item) {
+          return item;
+        }).join("\n");
+
+        var flags = [];
+
+        for (var i = 0; i < 50; i++, n++) {
+          flags.push(pass[n]);
+        }
+
+        $("flags").value = "";
+
+        for (var i = 0; i < 300; i++) {
+          $("flags").value += +GetFlag(flags, i);
+        }
+      })();
+
+      document.body.onchange = function (event) {
+        if (event.target.id === "password") return;
+
+        var pass = [0, 2];
+
+        function WriteWord(i, n) {
+          pass[i] = n / 64 & 0x3f;
+          pass[i + 1] = n % 64;
+        }
+
+        var name = $("name").value.split("");
+
+        for (var i = 0; i < 4; i++) {
+          var n = NAME_CHARACTERS.indexOf(name[i] || "\u3000");
+
+          pass.push(
+            Math.floor(n / 64),
+            n % 64,
+          );
+        }
+
+        WriteWord(10, $("area").value);
+
+        var pos = $("pos").value.split(",");
+
+        WriteWord(12, pos[0]);
+        WriteWord(14, pos[1]);
+        pass.push(+pos[2]);
+
+        var gold = $("gold").value;
+
+        pass.push(
+          gold / 262144 & 0x3f,
+          gold / 4096 & 0x3f,
+          gold / 64 & 0x3f,
+          gold & 0x3f,
+        );
+
+        var time = $("time").value.split(":");
+
+        pass.push(
+          time[0] & 0x3f,
+          +time[1],
+          +time[2],
+        );
+
+        var ship = $("ship").value.split(",");
+
+        WriteWord(24, ship[0]);
+
+        pass.push(
+          time[0] / 64 & 0x3f,
+          ship[1] & 0x3f,
+          ship[2] & 0x3f,
+        );
+
+        for (var i = 0; i < 3; i++) {
+          var exp = $("exp" + i).value;
+
+          pass.push(
+            exp / 262144 & 0x3f,
+            exp / 4096 & 0x3f,
+            exp / 64 & 0x3f,
+            exp & 0x3f,
+          );
+
+          var ap = $("ap" + i).value;
+
+          pass.push(
+            ap / 64 & 0x3f,
+            ap & 0x3f,
+          );
+
+          function Equip2Pass(n, m) {
+            return n === -1 ? 63 : n - m & 0x3f;
+          }
+
+          var gem = ITEMS.indexOf($("gem" + i).value) || -1;
+
+          pass.push(Equip2Pass(gem, 110));
+
+          function SetFlag(flag, n) {
+            var i = 1 << n % 6;
+            flag[Math.floor(n / 6)] |= i;
+          }
+
+          var gemFlag = [];
+
+          $("learned-gems" + i).value.split("\n").forEach(function (gem) {
+            SetFlag(gemFlag, ITEMS.indexOf(gem) - 110);
+          });
+
+          pass.push(
+            gemFlag[0] || 0,
+            gemFlag[1] || 0,
+            gemFlag[2] || 0,
+          );
+
+          var equip = $("equip" + i).value.split("\n");
+
+          for (var j = 0; j < 5; j++) {
+            pass.push(Equip2Pass(ITEMS.indexOf(equip[j]) || -1, [20, 50, 70, 89, 89][j]));
+          }
+
+          var abiFlag = [];
+
+          $("abi" + i).value.split("\n").forEach(function (abi) {
+            SetFlag(abiFlag, ABILITIES.indexOf(abi));
+          });
+
+          for (var j = 0; j < 19; j++) {
+            pass.push(abiFlag[j] || 0);
+          }
+
+          var cmdAbFlag = [];
+
+          $("learned-cmd-ab" + i).value.split("\n").forEach(function (cmdAb) {
+            var n = BATTLE_COMMANDS.indexOf(cmdAb);
+            SetFlag(cmdAbFlag, i === 0 && n === 12 ? 6 : n);
+          });
+
+          pass.push(
+            cmdAbFlag[0],
+            cmdAbFlag[1],
+          );
+
+          var cmdAb = $("cmd-ab" + i).value.split("\n");
+
+          for (var j = 0; j < 4; j++) {
+            var n = BATTLE_COMMANDS.indexOf(cmdAb[j] || "");
+            pass.push(i === 0 && n === 12 ? 6 : n);
+          }
+
+          var hp = $("hp" + i).value;
+
+          pass.push(
+            hp / 4096 & 0x3f,
+            hp / 64 & 0x3f,
+            hp & 0x3f,
+          );
+
+          var mp = $("mp" + i).value;
+
+          pass.push(
+            mp / 64 & 0x3f,
+            mp & 0x3f,
+          );
+        }
+
+        var nItems = new Array(150).fill(0);
+
+        $("items").value.split("\n").forEach(function (item) {
+          var splits = item.split("×");
+          nItems[ITEMS.indexOf(splits[0])] = +splits[1];
+        });
+
+        for (var i = 0; i < 150; i += 3) {
+          pass.push(nItems[i] + ((nItems[i + 1] & 0x3) << 4));
+          pass.push(nItems[i + 2] + (nItems[i + 1] >> 2 << 4));
+        }
+
+        $("flags").value.match(/.{1,6}/g).forEach(function (hexad) {
+          pass.push(parseInt(hexad.split("").reverse().join(""), 2));
+        });
+
+        var j = 0;
+        var k = 0;
+
+        for (var i = 0; i < 314; i++) {
+          j += pass[i];
+          k += (i & 0x1) === 0x0 ? pass[i] : -pass[i];
+        }
+
+        pass.push(
+          j / 64 & 0x3f,
+          j & 0x3f,
+          k / 64 & 0x3f,
+          k & 0x3f,
+        );
+
+        $("password").value = "";
+
+        for (var i = 0; i < 318; i++) {
+          $("password").value += PASSWORD_CHARACTERS[pass[i] /* + offset */ + i * 27 & 0x3f];
+
+          if (i % 53 === 52 && i != 317) {
+            $("password").value += "\n";
+          }
+        }
+      };
+    </script>
+    <style>
+      * {
+        font-family: monospace;
       }
 
-      $("learned-cmd-ab" + i).value = learnedCmdAb.join("\n");
-
-      var cmdAb = [];
-
-      for (var j = 36; j <= 39; j++) {
-        cmdAb.push(GetBattleCommand(i, pass[n + j]));
+      #name,
+      #pos,
+      #gold,
+      #ship,
+      .exp,
+      .ap {
+        width: 8ch;
       }
 
-      $("cmd-ab" + i).value = cmdAb.join("\n");
-
-      $("hp" + i).value =
-        pass[n + 40] * 4096 +
-        pass[n + 41] * 64 +
-        pass[n + 42];
-
-      $("mp" + i).value =
-        pass[n + 43] * 64 +
-        pass[n + 44];
-    }
-
-    n += 45;
-
-    var nItems = [];
-
-    for (var i = 0; i < 150; i += 3, n += 2) {
-      nItems[i] = pass[n] & 0xf;
-      nItems[i + 1] = (pass[n] >> 4) + (pass[n + 1] >> 4) * 4;
-      nItems[i + 2] = pass[n + 1] & 0xf;
-    }
-
-    $("items").value = ITEMS.map(function (item, i) {
-      if (nItems[i]) {
-        return item + "×" + nItems[i];
-      }
-    }).filter(function (item) {
-      return item;
-    }).join("\n");
-
-    var flags = [];
-
-    for (var i = 0; i < 50; i++, n++) {
-      flags.push(pass[n]);
-    }
-
-    $("flags").value = "";
-
-    for (var i = 0; i < 300; i++) {
-      $("flags").value += +GetFlag(flags, i);
-    }
-  })();
-
-  document.body.onchange = function (event) {
-    if (event.target.id === "password") return;
-
-    var pass = [0, 2];
-
-    function WriteWord(i, n) {
-      pass[i] = n / 64 & 0x3f;
-      pass[i + 1] = n % 64;
-    }
-
-    var name = $("name").value.split("");
-
-    for (var i = 0; i < 4; i++) {
-      var n = NAME_CHARACTERS.indexOf(name[i] || "\u3000");
-
-      pass.push(
-        Math.floor(n / 64),
-        n % 64,
-      );
-    }
-
-    WriteWord(10, $("area").value);
-
-    var pos = $("pos").value.split(",");
-
-    WriteWord(12, pos[0]);
-    WriteWord(14, pos[1]);
-    pass.push(+pos[2]);
-
-    var gold = $("gold").value;
-
-    pass.push(
-      gold / 262144 & 0x3f,
-      gold / 4096 & 0x3f,
-      gold / 64 & 0x3f,
-      gold & 0x3f,
-    );
-
-    var time = $("time").value.split(":");
-
-    pass.push(
-      time[0] & 0x3f,
-      +time[1],
-      +time[2],
-    );
-
-    var ship = $("ship").value.split(",");
-
-    WriteWord(24, ship[0]);
-
-    pass.push(
-      time[0] / 64 & 0x3f,
-      ship[1] & 0x3f,
-      ship[2] & 0x3f,
-    );
-
-    for (var i = 0; i < 3; i++) {
-      var exp = $("exp" + i).value;
-
-      pass.push(
-        exp / 262144 & 0x3f,
-        exp / 4096 & 0x3f,
-        exp / 64 & 0x3f,
-        exp & 0x3f,
-      );
-
-      var ap = $("ap" + i).value;
-
-      pass.push(
-        ap / 64 & 0x3f,
-        ap & 0x3f,
-      );
-
-      function Equip2Pass(n, m) {
-        return n === -1 ? 63 : n - m & 0x3f;
+      #area {
+        width: 3ch;
       }
 
-      var gem = ITEMS.indexOf($("gem" + i).value) || -1;
-
-      pass.push(Equip2Pass(gem, 110));
-
-      function SetFlag(flag, n) {
-        var i = 1 << n % 6;
-        flag[Math.floor(n / 6)] |= i;
+      #time {
+        width: 9ch;
       }
 
-      var gemFlag = [];
-
-      $("learned-gems" + i).value.split("\n").forEach(function (gem) {
-        SetFlag(gemFlag, ITEMS.indexOf(gem) - 110);
-      });
-
-      pass.push(
-        gemFlag[0] || 0,
-        gemFlag[1] || 0,
-        gemFlag[2] || 0,
-      );
-
-      var equip = $("equip" + i).value.split("\n");
-
-      for (var j = 0; j < 5; j++) {
-        pass.push(Equip2Pass(ITEMS.indexOf(equip[j]) || -1, [20, 50, 70, 89, 89][j]));
+      .gem {
+        width: 13ch;
       }
 
-      var abiFlag = [];
-
-      $("abi" + i).value.split("\n").forEach(function (abi) {
-        SetFlag(abiFlag, ABILITIES.indexOf(abi));
-      });
-
-      for (var j = 0; j < 19; j++) {
-        pass.push(abiFlag[j] || 0);
+      .hp {
+        width: 5ch;
       }
 
-      var cmdAbFlag = [];
-
-      $("learned-cmd-ab" + i).value.split("\n").forEach(function (cmdAb) {
-        var n = BATTLE_COMMANDS.indexOf(cmdAb);
-        SetFlag(cmdAbFlag, i === 0 && n === 12 ? 6 : n);
-      });
-
-      pass.push(
-        cmdAbFlag[0],
-        cmdAbFlag[1],
-      );
-
-      var cmdAb = $("cmd-ab" + i).value.split("\n");
-
-      for (var j = 0; j < 4; j++) {
-        var n = BATTLE_COMMANDS.indexOf(cmdAb[j] || "");
-        pass.push(i === 0 && n === 12 ? 6 : n);
+      .mp {
+        width: 4ch;
       }
-
-      var hp = $("hp" + i).value;
-
-      pass.push(
-        hp / 4096 & 0x3f,
-        hp / 64 & 0x3f,
-        hp & 0x3f,
-      );
-
-      var mp = $("mp" + i).value;
-
-      pass.push(
-        mp / 64 & 0x3f,
-        mp & 0x3f,
-      );
-    }
-
-    var nItems = new Array(150).fill(0);
-
-    $("items").value.split("\n").forEach(function (item) {
-      var splits = item.split("×");
-      nItems[ITEMS.indexOf(splits[0])] = +splits[1];
-    });
-
-    for (var i = 0; i < 150; i += 3) {
-      pass.push(nItems[i] + ((nItems[i + 1] & 0x3) << 4));
-      pass.push(nItems[i + 2] + (nItems[i + 1] >> 2 << 4));
-    }
-
-    $("flags").value.match(/.{1,6}/g).forEach(function (hexad) {
-      pass.push(parseInt(hexad.split("").reverse().join(""), 2));
-    });
-
-    var j = 0;
-    var k = 0;
-
-    for (var i = 0; i < 314; i++) {
-      j += pass[i];
-      k += (i & 0x1) === 0x0 ? pass[i] : -pass[i];
-    }
-
-    pass.push(
-      j / 64 & 0x3f,
-      j & 0x3f,
-      k / 64 & 0x3f,
-      k & 0x3f,
-    );
-
-    $("password").value = "";
-
-    for (var i = 0; i < 318; i++) {
-      $("password").value += PASSWORD_CHARACTERS[pass[i] /* + offset */ + i * 27 & 0x3f];
-
-      if (i % 53 === 52 && i != 317) {
-        $("password").value += "\n";
-      }
-    }
-  };
-</script>
-<style>
-  * {
-    font-family: monospace;
-  }
-
-  #name,
-  #pos,
-  #gold,
-  #ship,
-  .exp,
-  .ap {
-    width: 8ch;
-  }
-
-  #area {
-    width: 3ch;
-  }
-
-  #time {
-    width: 9ch;
-  }
-
-  .gem {
-    width: 13ch;
-  }
-
-  .hp {
-    width: 5ch;
-  }
-
-  .mp {
-    width: 4ch;
-  }
-</style>
+    </style>
+  </body>
+</html>
